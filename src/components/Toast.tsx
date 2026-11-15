@@ -1,11 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useApp } from "../app/store";
 import { Icon } from "./Icon";
 export const Toast = () => {
   const toast = useApp((s) => s.toast);
   const notify = useApp((s) => s.notify);
+  const box = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    setFocused(!!box.current?.contains(document.activeElement));
+  }, [toast]);
   useEffect(() => {
     if (!toast || hovered || focused) return;
     const timer = window.setTimeout(
@@ -17,6 +21,7 @@ export const Toast = () => {
   if (!toast) return null;
   return (
     <div
+      ref={box}
       className="toast"
       role="status"
       onPointerEnter={(e) => {

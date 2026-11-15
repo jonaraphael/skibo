@@ -715,9 +715,9 @@ textarea {
 .popover button:hover {
   background: var(--soft-green);
 }
-.menu-card.inactive,
-.task-row.inactive > :not(.row-menu) {
-  opacity: 0.65;
+.menu-card.inactive h3,
+.task-row.inactive .task-title {
+  color: var(--muted);
 }
 .task-kind {
   color: var(--muted);

@@ -101,7 +101,11 @@ test("first intention, reward, undo, saved roll, menu, record, and reload", asyn
     fullPage: false,
   });
   await reveal.getByRole("button", { name: "Keep in tray" }).click();
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  const undoToast = page.getByRole("button", { name: "Undo", exact: true });
+  await undoToast.focus();
+  await undoToast.press("Enter");
+  await page.mouse.move(0, 0);
+  await expect(page.locator(".toast")).toHaveCount(0, { timeout: 6500 });
   await page.evaluate(() => {
     Crypto.prototype.getRandomValues = function <
       T extends ArrayBufferView | null,
@@ -475,6 +479,9 @@ test("hidden invalid schedule fields and partial years cannot corrupt the saved 
     .first()
     .click();
   const sheet = page.getByRole("dialog", { name: "A new intention" });
+  await sheet.getByLabel("Task name").fill("   ");
+  await sheet.getByRole("button", { name: "Add task", exact: true }).click();
+  await expect(sheet.getByRole("alert")).toBeInViewport();
   await sheet.getByLabel("Task name").fill("A safe one-off");
   await sheet.getByLabel("Every", { exact: true }).fill("");
   await sheet.getByRole("button", { name: "Monthly", exact: true }).click();

@@ -48,7 +48,9 @@ const isReward = (v: unknown): v is Reward =>
 const isSchedule = (s: unknown): s is Schedule =>
   object(s) &&
   oneOf(s.kind, ["once", "daily", "weekly", "monthly", "after"]) &&
-  (s.start === null ? s.kind === "once" : validDate(s.start)) &&
+  (s.start === null
+    ? s.kind === "once"
+    : validDate(s.start) && s.start <= "9900-12-31") &&
   time(s.time) &&
   integer(s.every, 1, 365) &&
   Array.isArray(s.weekdays) &&

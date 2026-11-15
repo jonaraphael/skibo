@@ -40,11 +40,6 @@ export const RewardEditor = ({
         Make it yours. A moment, an experience, a little treat.
       </p>
       <form className="editor-form" onSubmit={submit}>
-        {errorText && (
-          <p className="error-text" role="alert">
-            {errorText}
-          </p>
-        )}
         <label className="field title-field">
           <span>Reward name</span>
           <input
@@ -77,6 +72,11 @@ export const RewardEditor = ({
           Sizes are personal. A small reward might be a lovely break; a big one,
           a day to yourself. Earned rewards keep their original name and size.
         </p>
+        {errorText && (
+          <p className="error-text" role="alert">
+            {errorText}
+          </p>
+        )}
         <button
           type="submit"
           className="button primary full-width"

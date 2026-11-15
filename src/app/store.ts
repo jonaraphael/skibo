@@ -116,10 +116,11 @@ export const useApp = create<AppState>((set, get) => ({
   },
   setTaskStatus: (id, status) => {
     const previous = get().data.tasks.find((t) => t.id === id)?.status;
-    get().change((d) => ({
+    const changed = get().change((d) => ({
       ...d,
       tasks: d.tasks.map((t) => (t.id === id ? { ...t, status } : t)),
     }));
+    if (!changed) return;
     get().notify({
       message:
         status === "archived"
@@ -128,14 +129,14 @@ export const useApp = create<AppState>((set, get) => ({
             ? "Task paused."
             : "Task is active.",
       undo: () => {
-        if (previous)
-          get().change((d) => ({
-            ...d,
-            tasks: d.tasks.map((t) =>
-              t.id === id ? { ...t, status: previous } : t,
-            ),
-          }));
-        get().notify({ message: "Undone." });
+        if (!previous) return;
+        const restored = get().change((d) => ({
+          ...d,
+          tasks: d.tasks.map((t) =>
+            t.id === id ? { ...t, status: previous } : t,
+          ),
+        }));
+        if (restored) get().notify({ message: "Undone." });
       },
     });
   },
@@ -173,7 +174,8 @@ export const useApp = create<AppState>((set, get) => ({
       period: period.key,
       at: new Date().toISOString(),
     };
-    get().change((data) => ({ ...data, events: [...data.events, event] }));
+    if (!get().change((data) => ({ ...data, events: [...data.events, event] })))
+      return;
     get().notify({
       message: "Skipped this time. No roll taken.",
       undo: () => get().undo(event.id),
@@ -189,7 +191,7 @@ export const useApp = create<AppState>((set, get) => ({
       until: addDays(dayKey(now, get().data.preferences.dayStart), 1),
       at: now.toISOString(),
     };
-    get().change((d) => ({ ...d, events: [...d.events, event] }));
+    if (!get().change((d) => ({ ...d, events: [...d.events, event] }))) return;
     get().notify({
       message: "Moved to tomorrow.",
       undo: () => get().undo(event.id),
@@ -201,7 +203,7 @@ export const useApp = create<AppState>((set, get) => ({
       get().notify({ message: "That action can no longer be undone." });
       return;
     }
-    get().change((d) => ({ ...d, events: [...d.events, event] }));
+    if (!get().change((d) => ({ ...d, events: [...d.events, event] }))) return;
     set({ reveal: null });
     get().notify({ message: "Undone." });
   },
@@ -213,7 +215,7 @@ export const useApp = create<AppState>((set, get) => ({
       target,
       at: new Date().toISOString(),
     };
-    get().change((d) => ({ ...d, events: [...d.events, event] }));
+    if (!get().change((d) => ({ ...d, events: [...d.events, event] }))) return;
     set({ reveal: null });
     get().notify({
       message: "Enjoy it. You've earned it.",
@@ -236,7 +238,7 @@ export const useApp = create<AppState>((set, get) => ({
     })),
   importBackup: (json) => {
     const imported = readBackup(json);
-    get().change((d) => ({ ...imported, revision: d.revision }));
+    if (!get().change((d) => ({ ...imported, revision: d.revision }))) return;
     set({ reveal: null, toast: { message: "Your backup has been restored." } });
   },
   notify: (toast) => set({ toast }),

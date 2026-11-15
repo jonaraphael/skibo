@@ -93,11 +93,6 @@ export const TaskEditor = ({
     >
       <h2>{task ? "Make it work for you." : "What would you like to do?"}</h2>
       <form onSubmit={onSubmit} className="editor-form">
-        {error && (
-          <p className="error-text" role="alert">
-            {error}
-          </p>
-        )}
         <label className="field title-field">
           <span>Task name</span>
           <input
@@ -160,7 +155,7 @@ export const TaskEditor = ({
               <input
                 type="date"
                 min="1900-01-01"
-                max="9999-12-31"
+                max="9900-12-31"
                 required
                 value={schedule.start ?? today}
                 onChange={(e) => patch({ start: e.target.value })}
@@ -406,6 +401,11 @@ export const TaskEditor = ({
               : "One completion, one chance at something good."}{" "}
           All times are local.
         </p>
+        {error && (
+          <p className="error-text" role="alert">
+            {error}
+          </p>
+        )}
         <button
           className="button primary full-width"
           disabled={!!storageError}

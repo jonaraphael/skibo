@@ -156,11 +156,6 @@ export const Welcome = () => {
               your menu is always yours to change.
             </p>
             <form onSubmit={submitMenu} className="editor-form">
-              {error && (
-                <p className="error-text" role="alert">
-                  {error}
-                </p>
-              )}
               {["Small", "Medium", "Big"].map((size, i) => (
                 <label className="field" key={size}>
                   <span>{size} reward</span>
@@ -178,6 +173,11 @@ export const Welcome = () => {
                   />
                 </label>
               ))}
+              {error && (
+                <p className="error-text" role="alert">
+                  {error}
+                </p>
+              )}
               <button className="button primary" disabled={!!storageError}>
                 Looks good to me <Icon name="arrow" size={18} />
               </button>

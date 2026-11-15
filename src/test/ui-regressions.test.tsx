@@ -189,3 +189,76 @@ it("keeps a focused undo notification until focus leaves", () => {
     vi.useRealTimers();
   }
 });
+
+it("does not persist a start date whose next period could exceed supported date keys", () => {
+  const original = useApp.getState().data;
+  expect(
+    useApp.getState().change((d) => ({
+      ...d,
+      tasks: [task({ kind: "weekly", start: "9999-12-31", weekdays: [0] })],
+    })),
+  ).toBe(false);
+  expect(useApp.getState().data).toBe(original);
+  expect(saveNotebook).not.toHaveBeenCalled();
+});
+it("does not report a successful undo when saving is blocked", () => {
+  const t = task();
+  useApp.setState({
+    data: {
+      ...emptyNotebook(),
+      tasks: [t],
+      events: [
+        {
+          id: "skip",
+          type: "skipped",
+          taskId: t.id,
+          taskTitle: t.title,
+          period: `${t.id}:once`,
+          at: now.toISOString(),
+        },
+      ],
+    },
+    storageError: "Saving failed",
+    toast: { message: "Skipped this time." },
+  });
+  useApp.getState().undo("skip");
+  expect(useApp.getState().data.events).toHaveLength(1);
+  expect(useApp.getState().toast?.message).not.toBe("Undone.");
+});
+it("dismisses the replacement toast after its focused Undo button is removed", () => {
+  vi.useFakeTimers();
+  try {
+    useApp.setState({
+      toast: {
+        message: "Done.",
+        undo: () => useApp.getState().notify({ message: "Undone." }),
+      },
+    });
+    render(<Toast />);
+    const undo = screen.getByRole("button", { name: "Undo" });
+    act(() => {
+      undo.focus();
+    });
+    fireEvent.click(undo);
+    act(() => {
+      vi.advanceTimersByTime(4000);
+    });
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it.each(["paused", "archived"] as const)(
+  "keeps %s status and accurate feedback when status undo cannot save",
+  (status) => {
+    useApp.setState({ data: { ...emptyNotebook(), tasks: [task()] } });
+    useApp.getState().setTaskStatus("walk", status);
+    const undo = useApp.getState().toast?.undo;
+    expect(undo).toBeTypeOf("function");
+    useApp.setState({ storageError: "Saving failed" });
+    undo!();
+    expect(useApp.getState().data.tasks[0].status).toBe(status);
+    expect(useApp.getState().toast?.message).not.toBe("Undone.");
+  },
+);
