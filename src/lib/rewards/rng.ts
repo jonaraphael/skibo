@@ -25,6 +25,6 @@ export const createCryptoRng = (): RandomSource => {
       const arr = new Uint32Array(1);
       crypto.getRandomValues(arr);
       return arr[0] / 4294967296;
-    }
+    },
   };
 };

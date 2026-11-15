@@ -4,7 +4,6 @@ import { VitePWA } from "vite-plugin-pwa";
 
 const basePathRaw = process.env.VITE_BASE_PATH ?? "/";
 const basePath = basePathRaw.endsWith("/") ? basePathRaw : `${basePathRaw}/`;
-const faviconPath = basePath === "/" ? "/favicon.svg" : `${basePath}favicon.svg`;
 
 export default defineConfig({
   base: basePath,
@@ -12,32 +11,38 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.svg"],
+      includeAssets: ["favicon.svg", "apple-touch-icon.png"],
       manifest: {
         name: "SkinnerBox",
         short_name: "SkinnerBox",
-        description: "Routine and deadline tracker with variable reinforcement rewards",
-        theme_color: "#f6f4ef",
-        background_color: "#f6f4ef",
+        description: "Small intentions. A chance at something good.",
+        theme_color: "#f5f3ec",
+        background_color: "#f5f3ec",
         display: "standalone",
         scope: basePath,
         start_url: basePath,
         icons: [
           {
-            src: faviconPath,
+            src: `${basePath}icon-192.png`,
             sizes: "192x192",
-            type: "image/svg+xml"
-          }
-        ]
+            type: "image/png",
+          },
+          {
+            src: `${basePath}icon-512.png`,
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "any maskable",
+          },
+        ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,svg,png,woff2}"]
-      }
-    })
+        globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
+      },
+    }),
   ],
   test: {
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
-    include: ["src/test/**/*.test.ts", "src/test/**/*.test.tsx"]
-  }
+    include: ["src/test/**/*.test.ts", "src/test/**/*.test.tsx"],
+  },
 });
