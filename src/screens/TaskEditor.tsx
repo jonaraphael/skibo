@@ -1,291 +1,438 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { RecurrenceKind, Task } from "../app/types";
-import { TopBar } from "../components/TopBar";
-import { useSkinnerStore } from "../app/store";
+import { FormEvent, useState } from "react";
+import { Link } from "react-router-dom";
+import { useApp } from "../app/store";
+import { Effort, Schedule, Task } from "../app/types";
+import { Dialog } from "../components/Dialog";
+import { EffortPips } from "../components/Shared";
+import { useWorkspace } from "../components/Workspace";
+import {
+  addDays,
+  dayKey,
+  liveEvents,
+  localDate,
+  prettyDate,
+  scheduleLabel,
+} from "../lib/schedule/calendar";
 
-const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-const toLocalInputValue = (iso: string | null): string => {
-  if (!iso) {
-    return "";
-  }
-  const date = new Date(iso);
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, "0");
-  const day = `${date.getDate()}`.padStart(2, "0");
-  const hour = `${date.getHours()}`.padStart(2, "0");
-  const minute = `${date.getMinutes()}`.padStart(2, "0");
-  return `${year}-${month}-${day}T${hour}:${minute}`;
-};
-
-export const TaskEditor = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const tasks = useSkinnerStore((state) => state.tasks);
-  const addTask = useSkinnerStore((state) => state.addTask);
-  const updateTask = useSkinnerStore((state) => state.updateTask);
-  const prefs = useSkinnerStore((state) => state.prefs);
-
-  const existing = useMemo(() => tasks.find((task) => task.id === id) ?? null, [tasks, id]);
-
-  const [title, setTitle] = useState(existing?.title ?? "");
-  const [notes, setNotes] = useState(existing?.notes ?? "");
-  const [kind, setKind] = useState<Task["kind"]>(existing?.kind ?? "recurring");
-  const [difficulty, setDifficulty] = useState<Task["difficulty"]>(existing?.difficulty ?? "medium");
-  const [dueAt, setDueAt] = useState(toLocalInputValue(existing?.dueAtIso ?? new Date().toISOString()));
-  const [recurrenceKind, setRecurrenceKind] = useState<RecurrenceKind>(existing?.recurrence?.kind ?? "daily");
-  const [interval, setInterval] = useState(existing?.recurrence?.interval ?? 1);
-  const [intervalUnit, setIntervalUnit] = useState(existing?.recurrence?.intervalUnit ?? "hours");
-  const [daysOfWeek, setDaysOfWeek] = useState<number[]>(existing?.recurrence?.daysOfWeek ?? [new Date().getDay()]);
-  const [dayOfMonth, setDayOfMonth] = useState(existing?.recurrence?.dayOfMonth ?? new Date().getDate());
-  const [nthWeekday, setNthWeekday] = useState(existing?.recurrence?.nthWeekday?.nth ?? 1);
-  const [nthWeekdayDay, setNthWeekdayDay] = useState(existing?.recurrence?.nthWeekday?.weekday ?? 1);
-  const [monthlyMode, setMonthlyMode] = useState<"dayOfMonth" | "nthWeekday">(
-    existing?.recurrence?.nthWeekday ? "nthWeekday" : "dayOfMonth"
+export const TaskEditor = ({
+  task,
+  close,
+}: {
+  task: Task | null;
+  close: () => void;
+}) => {
+  const { now } = useWorkspace();
+  const { data, saveTask, storageError } = useApp();
+  const today = dayKey(now, data.preferences.dayStart);
+  const [title, setTitle] = useState(task?.title ?? "");
+  const [error, setError] = useState("");
+  const [notes, setNotes] = useState(task?.notes ?? "");
+  const [effort, setEffort] = useState<Effort>(task?.effort ?? "solid");
+  const [schedule, setSchedule] = useState<Schedule>(
+    task?.schedule ?? {
+      kind: "daily",
+      start: today,
+      time: "",
+      every: 1,
+      weekdays: [localDate(today).getDay()],
+      monthDay: localDate(today).getDate(),
+      unit: "days",
+    },
   );
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!existing) {
-      return;
-    }
-    setTitle(existing.title);
-    setNotes(existing.notes ?? "");
-    setKind(existing.kind);
-    setDifficulty(existing.difficulty);
-    setDueAt(toLocalInputValue(existing.dueAtIso));
-    setRecurrenceKind(existing.recurrence?.kind ?? "daily");
-    setInterval(existing.recurrence?.interval ?? 1);
-    setIntervalUnit(existing.recurrence?.intervalUnit ?? "hours");
-    setDaysOfWeek(existing.recurrence?.daysOfWeek ?? [new Date().getDay()]);
-    setDayOfMonth(existing.recurrence?.dayOfMonth ?? new Date().getDate());
-    setNthWeekday(existing.recurrence?.nthWeekday?.nth ?? 1);
-    setNthWeekdayDay(existing.recurrence?.nthWeekday?.weekday ?? 1);
-    setMonthlyMode(existing.recurrence?.nthWeekday ? "nthWeekday" : "dayOfMonth");
-  }, [existing]);
-
-  const toggleDay = (day: number) => {
-    setDaysOfWeek((current) => {
-      if (current.includes(day)) {
-        return current.filter((entry) => entry !== day);
-      }
-      return [...current, day].sort((a, b) => a - b);
-    });
-  };
-
-  const onSubmit = (event: FormEvent) => {
-    event.preventDefault();
+  const [pickDate, setPickDate] = useState(
+    !!schedule.start && ![today, addDays(today, 1)].includes(schedule.start),
+  );
+  const patch = (next: Partial<Schedule>) =>
+    setSchedule((s) => ({ ...s, ...next }));
+  const onSubmit = (e: FormEvent) => {
+    e.preventDefault();
     if (!title.trim()) {
-      setError("Title is required.");
+      setError("Give your task a name.");
       return;
     }
-    if (interval < 1) {
-      setError("Interval must be at least 1.");
-      return;
-    }
-    if (kind === "deadline" && !dueAt) {
-      setError("Deadline tasks require a due date.");
-      return;
-    }
-
-    const recurrence =
-      kind === "recurring"
-        ? {
-            kind: recurrenceKind,
-            interval,
-            intervalUnit,
-            daysOfWeek: recurrenceKind === "weekly" ? daysOfWeek : undefined,
-            dayOfMonth: recurrenceKind === "monthly" && monthlyMode === "dayOfMonth" ? dayOfMonth : undefined,
-            nthWeekday:
-              recurrenceKind === "monthly" && monthlyMode === "nthWeekday"
-                ? {
-                    nth: nthWeekday as 1 | 2 | 3 | 4 | -1,
-                    weekday: nthWeekdayDay
-                  }
-                : undefined,
-            anchorIso: existing?.recurrence?.anchorIso ?? new Date().toISOString(),
-            timezone: prefs.timezone
-          }
-        : null;
-
-    const payload = {
-      title: title.trim(),
-      notes: notes.trim() ? notes.trim() : null,
-      kind,
-      difficulty,
-      active: true,
-      recurrence,
-      dueAtIso: kind === "deadline" ? new Date(dueAt).toISOString() : null
-    };
-
-    if (existing) {
-      updateTask(existing.id, payload);
-    } else {
-      addTask(payload);
-    }
-
-    navigate("/");
+    if (storageError) return;
+    const saved = saveTask(
+      {
+        title: title.trim(),
+        notes: notes.trim(),
+        effort,
+        schedule: {
+          ...schedule,
+          every:
+            Number.isInteger(schedule.every) &&
+            schedule.every >= 1 &&
+            schedule.every <= 365
+              ? schedule.every
+              : 1,
+          monthDay: Number.isInteger(schedule.monthDay)
+            ? Math.min(31, Math.max(1, schedule.monthDay))
+            : 1,
+        },
+        status: task?.status ?? "active",
+      },
+      task?.id,
+    );
+    if (saved) close();
+    else setError("Check the task name and schedule before saving.");
   };
-
+  const history = task
+    ? liveEvents(data.events)
+        .filter(
+          (e) =>
+            "taskId" in e &&
+            e.taskId === task.id &&
+            (e.type === "completed" || e.type === "skipped"),
+        )
+        .slice(-8)
+        .reverse()
+    : [];
   return (
-    <section className="screen">
-      <TopBar title={existing ? "Edit Task" : "New Task"} />
-
-      <form className="form" onSubmit={onSubmit}>
-        <label className="field">
-          <span>Title</span>
+    <Dialog
+      title={task ? "Edit your intention" : "A new intention"}
+      close={close}
+    >
+      <h2>{task ? "Make it work for you." : "What would you like to do?"}</h2>
+      <form onSubmit={onSubmit} className="editor-form">
+        <label className="field title-field">
+          <span>Task name</span>
           <input
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="Write lecture slides"
+            autoFocus
             required
+            maxLength={300}
+            placeholder="e.g. Make time for a walk"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
           />
         </label>
-
-        <label className="field">
-          <span>Notes</span>
-          <textarea
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            placeholder="Optional context"
-            rows={3}
-          />
-        </label>
-
-        <label className="field">
-          <span>Type</span>
-          <select value={kind} onChange={(event) => setKind(event.target.value as Task["kind"])}>
-            <option value="recurring">Recurring</option>
-            <option value="deadline">Deadline</option>
-          </select>
-        </label>
-
-        <label className="field">
-          <span>Difficulty</span>
-          <select value={difficulty} onChange={(event) => setDifficulty(event.target.value as Task["difficulty"])}>
-            <option value="easy">Easy</option>
-            <option value="medium">Medium</option>
-            <option value="hard">Hard</option>
-          </select>
-        </label>
-
-        {kind === "deadline" ? (
-          <label className="field">
-            <span>Due At</span>
-            <input type="datetime-local" value={dueAt} onChange={(event) => setDueAt(event.target.value)} />
-          </label>
-        ) : (
-          <>
+        <fieldset>
+          <legend>Starts</legend>
+          <div className="chips">
+            {[
+              [today, "Today"],
+              [addDays(today, 1), "Tomorrow"],
+            ].map(([date, label]) => (
+              <button
+                type="button"
+                key={label}
+                className={`chip ${schedule.start === date && !pickDate ? "selected" : ""}`}
+                aria-pressed={schedule.start === date && !pickDate}
+                onClick={() => {
+                  patch({ start: date });
+                  setPickDate(false);
+                }}
+              >
+                {label}
+              </button>
+            ))}
+            <button
+              type="button"
+              className={`chip ${pickDate ? "selected" : ""}`}
+              aria-pressed={pickDate}
+              onClick={() => {
+                setPickDate(true);
+                if (!schedule.start) patch({ start: today });
+              }}
+            >
+              Pick a day
+            </button>
+            {schedule.kind === "once" && (
+              <button
+                type="button"
+                className={`chip ${!schedule.start ? "selected" : ""}`}
+                aria-pressed={!schedule.start}
+                onClick={() => {
+                  patch({ start: null, time: "" });
+                  setPickDate(false);
+                }}
+              >
+                No date
+              </button>
+            )}
+          </div>
+          {pickDate && (
             <label className="field">
-              <span>Recurrence</span>
-              <select value={recurrenceKind} onChange={(event) => setRecurrenceKind(event.target.value as RecurrenceKind)}>
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-                <option value="interval">Interval</option>
-              </select>
+              <span>Start date</span>
+              <input
+                type="date"
+                min="1900-01-01"
+                max="9900-12-31"
+                required
+                value={schedule.start ?? today}
+                onChange={(e) => patch({ start: e.target.value })}
+              />
             </label>
-
+          )}
+        </fieldset>
+        <fieldset>
+          <legend>Repeats</legend>
+          <div className="chips">
+            {(
+              [
+                ["once", "Once"],
+                ["daily", "Daily"],
+                ["weekly", "Weekly"],
+                ["monthly", "Monthly"],
+                ["after", "After done"],
+              ] as const
+            ).map(([kind, label]) => (
+              <button
+                key={kind}
+                type="button"
+                className={`chip ${schedule.kind === kind ? "selected" : ""}`}
+                aria-pressed={schedule.kind === kind}
+                onClick={() => patch({ kind, start: schedule.start ?? today })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+        {schedule.kind !== "once" && (
+          <div className="inline-fields">
             <label className="field">
-              <span>Interval</span>
+              <span>Every</span>
               <input
                 type="number"
                 min={1}
-                value={interval}
-                onChange={(event) => setInterval(Number(event.target.value) || 1)}
+                max={365}
+                required
+                value={schedule.every}
+                onChange={(e) => patch({ every: Number(e.target.value) })}
               />
             </label>
-
-            {recurrenceKind === "interval" ? (
+            {schedule.kind === "after" ? (
               <label className="field">
-                <span>Interval Unit</span>
-                <select value={intervalUnit} onChange={(event) => setIntervalUnit(event.target.value as "hours" | "days" | "weeks")}>
-                  <option value="hours">Hours</option>
-                  <option value="days">Days</option>
-                  <option value="weeks">Weeks</option>
+                <span>After completing</span>
+                <select
+                  value={schedule.unit}
+                  onChange={(e) =>
+                    patch({ unit: e.target.value as Schedule["unit"] })
+                  }
+                >
+                  <option value="days">days</option>
+                  <option value="weeks">weeks</option>
+                  <option value="hours">hours</option>
                 </select>
               </label>
-            ) : null}
-
-            {recurrenceKind === "weekly" ? (
-              <fieldset className="weekday-fieldset">
-                <legend>Weekdays</legend>
-                <div className="weekday-grid">
-                  {weekdayLabels.map((label, day) => (
-                    <button
-                      key={label}
-                      type="button"
-                      className={daysOfWeek.includes(day) ? "chip active" : "chip"}
-                      onClick={() => toggleDay(day)}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
-            ) : null}
-
-            {recurrenceKind === "monthly" ? (
-              <>
+            ) : (
+              <span className="unit-label">
+                {schedule.kind === "daily"
+                  ? "day(s)"
+                  : schedule.kind === "weekly"
+                    ? "week(s)"
+                    : "month(s)"}
+              </span>
+            )}
+          </div>
+        )}
+        {schedule.kind === "weekly" && (
+          <fieldset>
+            <legend>On these days</legend>
+            <div className="weekday-picker">
+              {[
+                "Sunday",
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday",
+                "Saturday",
+              ].map((day, i) => (
+                <button
+                  key={day}
+                  type="button"
+                  className={`chip ${schedule.weekdays.includes(i) ? "selected" : ""}`}
+                  aria-label={day}
+                  aria-pressed={schedule.weekdays.includes(i)}
+                  onClick={() =>
+                    patch({
+                      weekdays: schedule.weekdays.includes(i)
+                        ? schedule.weekdays.length > 1
+                          ? schedule.weekdays.filter((d) => d !== i)
+                          : schedule.weekdays
+                        : [...schedule.weekdays, i].sort(),
+                    })
+                  }
+                >
+                  {day.slice(0, 2)}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        )}
+        {schedule.kind === "monthly" && (
+          <>
+            <label className="field">
+              <span>Monthly pattern</span>
+              <select
+                value={schedule.nthWeekday ? "weekday" : "date"}
+                onChange={(e) =>
+                  patch({
+                    nthWeekday:
+                      e.target.value === "weekday"
+                        ? { nth: 1, weekday: 1 }
+                        : undefined,
+                  })
+                }
+              >
+                <option value="date">Day of the month</option>
+                <option value="weekday">Nth weekday</option>
+              </select>
+            </label>
+            {schedule.nthWeekday ? (
+              <div className="two-col">
                 <label className="field">
-                  <span>Monthly Mode</span>
+                  <span>Which week</span>
                   <select
-                    value={monthlyMode}
-                    onChange={(event) => setMonthlyMode(event.target.value as "dayOfMonth" | "nthWeekday")}
+                    value={schedule.nthWeekday.nth}
+                    onChange={(e) =>
+                      patch({
+                        nthWeekday: {
+                          ...schedule.nthWeekday!,
+                          nth: Number(e.target.value),
+                        },
+                      })
+                    }
                   >
-                    <option value="dayOfMonth">Day of Month</option>
-                    <option value="nthWeekday">Nth Weekday</option>
+                    {[1, 2, 3, 4, -1].map((n) => (
+                      <option key={n} value={n}>
+                        {n === -1
+                          ? "Last"
+                          : ["", "First", "Second", "Third", "Fourth"][n]}
+                      </option>
+                    ))}
                   </select>
                 </label>
                 <label className="field">
-                  <span>Day of Month</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={31}
-                    value={dayOfMonth}
-                    onChange={(event) => setDayOfMonth(Number(event.target.value) || 1)}
-                    disabled={monthlyMode !== "dayOfMonth"}
-                  />
+                  <span>Weekday</span>
+                  <select
+                    value={schedule.nthWeekday.weekday}
+                    onChange={(e) =>
+                      patch({
+                        nthWeekday: {
+                          ...schedule.nthWeekday!,
+                          weekday: Number(e.target.value),
+                        },
+                      })
+                    }
+                  >
+                    {[
+                      "Sunday",
+                      "Monday",
+                      "Tuesday",
+                      "Wednesday",
+                      "Thursday",
+                      "Friday",
+                      "Saturday",
+                    ].map((d, i) => (
+                      <option key={d} value={i}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
                 </label>
-                <div className="two-col">
-                  <label className="field">
-                    <span>Nth Weekday</span>
-                    <select
-                      value={nthWeekday}
-                      disabled={monthlyMode !== "nthWeekday"}
-                      onChange={(event) => setNthWeekday(Number(event.target.value) as 1 | 2 | 3 | 4 | -1)}
-                    >
-                      <option value={1}>1st</option>
-                      <option value={2}>2nd</option>
-                      <option value={3}>3rd</option>
-                      <option value={4}>4th</option>
-                      <option value={-1}>Last</option>
-                    </select>
-                  </label>
-                  <label className="field">
-                    <span>Weekday</span>
-                    <select
-                      value={nthWeekdayDay}
-                      disabled={monthlyMode !== "nthWeekday"}
-                      onChange={(event) => setNthWeekdayDay(Number(event.target.value))}
-                    >
-                      {weekdayLabels.map((label, index) => (
-                        <option key={label} value={index}>{label}</option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-              </>
-            ) : null}
+              </div>
+            ) : (
+              <label className="field">
+                <span>Day of month (short months use their last day)</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={31}
+                  required
+                  value={schedule.monthDay}
+                  onChange={(e) => patch({ monthDay: Number(e.target.value) })}
+                />
+              </label>
+            )}
           </>
         )}
-
-        {error ? <p className="error-text">{error}</p> : null}
-
-        <button type="submit" className="btn-primary">Save Task</button>
+        <fieldset>
+          <legend>How much effort?</legend>
+          <div className="effort-picker">
+            {(["light", "solid", "heavy"] as const).map((value) => (
+              <button
+                type="button"
+                key={value}
+                aria-label={value}
+                className={effort === value ? "selected" : ""}
+                aria-pressed={effort === value}
+                onClick={() => setEffort(value)}
+              >
+                <EffortPips effort={value} />
+                <span>{value}</span>
+              </button>
+            ))}
+          </div>
+        </fieldset>
+        <details className="additional">
+          <summary>
+            Time & notes <span>optional</span>
+          </summary>
+          <div className="form-stack">
+            {schedule.start &&
+              !(schedule.kind === "after" && schedule.unit === "hours") && (
+                <label className="field">
+                  <span>Due time</span>
+                  <input
+                    type="time"
+                    value={schedule.time}
+                    onChange={(e) => patch({ time: e.target.value })}
+                  />
+                </label>
+              )}
+            <label className="field">
+              <span>Notes</span>
+              <textarea
+                rows={3}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Anything that makes starting easier"
+              />
+            </label>
+          </div>
+        </details>
+        <p className="schedule-echo">
+          <strong>{scheduleLabel(schedule)}.</strong>{" "}
+          {schedule.kind === "after"
+            ? "The next date starts from when you actually finish."
+            : schedule.kind !== "once"
+              ? "One open task at a time. Missed days won't pile up."
+              : "One completion, one chance at something good."}{" "}
+          All times are local.
+        </p>
+        {error && (
+          <p className="error-text" role="alert">
+            {error}
+          </p>
+        )}
+        <button
+          className="button primary full-width"
+          disabled={!!storageError}
+          type="submit"
+        >
+          {task ? "Save changes" : "Add task"}
+        </button>
       </form>
-    </section>
+      {task && (
+        <details className="task-history">
+          <summary>
+            Task history ·{" "}
+            {history.length ? "recent activity" : "a fresh start"}
+          </summary>
+          {history.map((e) => (
+            <div className="history-line" key={e.id}>
+              <span>{e.type === "completed" ? "Completed" : "Skipped"}</span>
+              <time>
+                {prettyDate(dayKey(new Date(e.at), data.preferences.dayStart))}
+              </time>
+            </div>
+          ))}
+          <Link to="/rewards/record" onClick={close}>
+            See your full record →
+          </Link>
+        </details>
+      )}
+    </Dialog>
   );
 };

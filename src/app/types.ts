@@ -1,81 +1,92 @@
-export type Difficulty = "easy" | "medium" | "hard";
-export type TaskKind = "recurring" | "deadline";
+export type Effort = "light" | "solid" | "heavy";
+export type RewardSize = "small" | "medium" | "big";
+export type DateKey = string;
 
-export type RecurrenceKind = "daily" | "weekly" | "monthly" | "interval";
-
-export interface RecurrenceRule {
-  kind: RecurrenceKind;
-  interval: number;
-  daysOfWeek?: number[];
-  dayOfMonth?: number;
-  nthWeekday?: { weekday: number; nth: 1 | 2 | 3 | 4 | -1 };
-  intervalUnit?: "hours" | "days" | "weeks";
-  anchorIso: string;
-  timezone: string;
+export interface Schedule {
+  kind: "once" | "daily" | "weekly" | "monthly" | "after";
+  start: DateKey | null;
+  time: string;
+  every: number;
+  weekdays: number[];
+  monthDay: number;
+  nthWeekday?: { nth: number; weekday: number };
+  unit: "hours" | "days" | "weeks";
 }
-
 export interface Task {
   id: string;
   title: string;
-  notes: string | null;
-  kind: TaskKind;
-  difficulty: Difficulty;
-  active: boolean;
-  recurrence: RecurrenceRule | null;
-  dueAtIso: string | null;
-  createdAtIso: string;
-  updatedAtIso: string;
-  archivedAtIso: string | null;
-  lastCompletedAtIso: string | null;
-  completionCount: number;
+  notes: string;
+  effort: Effort;
+  schedule: Schedule;
+  status: "active" | "paused" | "archived";
+  createdAt: string;
 }
-
-export interface TaskOccurrence {
-  occurrenceId: string;
-  taskId: string;
-  scheduledAtIso: string;
-  dueAtIso: string | null;
-  isOverdue: boolean;
-  completedAtIso: string | null;
-}
-
-export interface RewardDefinition {
+export interface Reward {
   id: string;
   title: string;
-  tier: Difficulty;
-  contextTags: string[];
-  popForTaskDifficulties: Difficulty[];
-  minStreak: number;
-  cooldownHours: number;
+  size: RewardSize;
+  active: boolean;
 }
-
-export interface RewardEvent {
+export interface Completion {
   id: string;
+  type: "completed";
   taskId: string;
-  occurrenceId: string;
-  triggered: boolean;
+  taskTitle: string;
+  period: string;
+  at: string;
   roll: number;
-  probability: number;
-  rewardId: string | null;
-  rewardTier: Difficulty | null;
-  createdAtIso: string;
+  reward: Reward | null;
 }
-
-export type DueBucket = "overdue" | "due_today" | "upcoming" | "later";
-
-export type DifficultySort = "default" | "difficulty_asc" | "difficulty_desc" | "due_date";
-
+export type JournalEvent =
+  | Completion
+  | {
+      id: string;
+      type: "undone";
+      target: string;
+      at: string;
+    }
+  | {
+      id: string;
+      type: "enjoyed";
+      target: string;
+      at: string;
+    }
+  | {
+      id: string;
+      type: "skipped";
+      taskId: string;
+      taskTitle: string;
+      period: string;
+      at: string;
+    }
+  | {
+      id: string;
+      type: "snoozed";
+      taskId: string;
+      period: string;
+      until: DateKey;
+      at: string;
+    };
 export interface Preferences {
-  timezone: string;
-  difficultySort: DifficultySort;
+  theme: "system" | "light" | "dark";
   reduceMotion: boolean;
-  lookbackDays: number;
-  horizonDays: number;
+  sound: boolean;
+  dayStart: number;
+  bigRewardCap: number | null;
 }
-
-export interface RewardStats {
-  completions: number;
-  triggered: number;
-  triggerRate: number;
-  tiers: Record<Difficulty, number>;
+export interface Notebook {
+  version: 2;
+  revision: number;
+  tasks: Task[];
+  rewards: Reward[];
+  events: JournalEvent[];
+  preferences: Preferences;
+  onboarded: boolean;
+}
+export interface TaskPeriod {
+  task: Task;
+  key: string;
+  date: DateKey | null;
+  time: string;
+  bucket: "late" | "today" | "anytime" | "later" | "done";
 }

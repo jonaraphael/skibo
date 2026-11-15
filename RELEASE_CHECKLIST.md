@@ -1,24 +1,13 @@
-# SkinnerBox Release Checklist
+# SkinnerBox release checks
 
-Date: 2026-02-27
+Run these against the final commit:
 
-## Build Contract Checklist
+- `TZ=America/New_York npm test`
+- `TZ=UTC npm test`
+- `VITE_BASE_PATH=/skinner/ npm run test:e2e`
+- Inspect the mobile and desktop screenshots in `test-results/` for layout, sheets, and dark mode.
+- Verify the generated manifest has 192px and 512px PNG icons, the correct start URL, and the repository scope.
+- Keep the original `sb:root` untouched; confirm migration and backup/restore tests pass.
+- Confirm the PR checks and review cover the final head.
 
-- [x] Full app scaffold with strict TypeScript config
-- [x] Domain modules implemented in `src/lib`
-- [x] Screen flows + persistence implemented
-- [x] Reward engine configured with strict `p = 0.30` rule
-- [x] Reward pools implemented per spec (E01-E40, M01-M30, H01-H20)
-- [x] Reduced-motion compliance implemented
-- [x] `npm run test` passed
-- [x] `npm run build` passed
-- [x] `npm run test:e2e` passed
-
-## Execution Evidence
-
-- `npm install --no-audit --no-fund` succeeded (465 packages installed).
-- `npm run test` passed: 9 test files, 13 tests total.
-- `npm run build` passed: `tsc --noEmit` and Vite production build completed, PWA `sw.js` generated.
-- `npm run test:e2e` passed: 1 mobile Playwright test.
-
-Note: initial install attempt in sandbox failed with `ENOTFOUND registry.npmjs.org`; install and verification succeeded after approved elevated network access.
+Deploy only through the existing GitHub Pages workflow after merging to `main`. Reminders and automatic sync are not part of this release.

@@ -1,62 +1,110 @@
-import { migratePersistedRoot, PersistedRoot, STORAGE_VERSION } from "./migration";
+import { Notebook } from "../../app/types";
+import { emptyNotebook, importLegacy, parseNotebook } from "./notebook";
 
-export const STORAGE_KEYS = {
-  tasks: "sb:tasks",
-  occurrences: "sb:occurrences",
-  rewardEvents: "sb:rewardEvents",
-  prefs: "sb:prefs",
-  session: "sb:session",
-  debugLog: "sb:debugLog",
-  root: "sb:root"
-} as const;
-
-const backupCorruptValue = (key: string, value: string): void => {
-  const backupKey = `sb:corrupt:${key}:${Date.now()}`;
-  try {
-    localStorage.setItem(backupKey, value);
-  } catch {
-    // Best-effort backup.
-  }
-};
-
-export const readLocal = <T>(key: string, fallback: T): T => {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) {
-      return fallback;
-    }
-    return JSON.parse(raw) as T;
-  } catch {
-    const raw = localStorage.getItem(key);
-    if (raw) {
-      backupCorruptValue(key, raw);
-    }
-    return fallback;
-  }
-};
-
-export const writeLocal = (key: string, value: unknown): void => {
-  localStorage.setItem(key, JSON.stringify(value));
-};
-
-export const readPersistedRoot = (): PersistedRoot => {
-  const value = readLocal<unknown>(STORAGE_KEYS.root, null);
-  const migrated = migratePersistedRoot(value);
-  if (migrated.version !== STORAGE_VERSION) {
-    const reset = {
-      ...migrated,
-      version: STORAGE_VERSION
+const DB_NAME = "skinnerbox";
+let connection: Promise<IDBDatabase> | undefined;
+const database = (): Promise<IDBDatabase> =>
+  (connection ??= new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = () =>
+      request.result.createObjectStore("notebook");
+    request.onsuccess = () => {
+      request.result.onversionchange = () => {
+        request.result.close();
+        connection = undefined;
+      };
+      resolve(request.result);
     };
-    writeLocal(STORAGE_KEYS.root, reset);
-    return reset;
-  }
-  return migrated;
+    request.onerror = () => {
+      connection = undefined;
+      reject(request.error);
+    };
+    request.onblocked = () => {
+      connection = undefined;
+      reject(
+        new Error(
+          "Close other SkinnerBox tabs, then reload to open your notebook.",
+        ),
+      );
+    };
+  }));
+export const loadNotebook = async (): Promise<Notebook> => {
+  const db = await database();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("notebook", "readwrite");
+    const store = tx.objectStore("notebook");
+    const request = store.get("root");
+    let result: Notebook;
+    request.onsuccess = () => {
+      try {
+        if (request.result) result = parseNotebook(request.result);
+        else {
+          const legacy = localStorage.getItem("sb:root");
+          result = legacy ? importLegacy(JSON.parse(legacy)) : emptyNotebook();
+          store.put(result, "root");
+        }
+      } catch (error) {
+        tx.abort();
+        reject(error);
+      }
+    };
+    tx.oncomplete = () => resolve(result);
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () =>
+      reject(tx.error ?? new Error("The notebook could not be opened."));
+  });
+};
+export const saveNotebook = async (data: Notebook): Promise<void> => {
+  const db = await database();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("notebook", "readwrite");
+    const store = tx.objectStore("notebook");
+    const request = store.get("root");
+    request.onsuccess = () => {
+      if (!request.result || request.result.revision !== data.revision - 1) {
+        reject(
+          new Error(
+            "Another tab changed your notebook. Download your current copy, then reload to use the saved version.",
+          ),
+        );
+        tx.abort();
+        return;
+      }
+      store.put(data, "root");
+    };
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () =>
+      reject(
+        tx.error ??
+          new Error(
+            "Your changes could not be saved. Download a backup before reloading.",
+          ),
+      );
+  });
 };
 
-export const writePersistedRoot = (root: PersistedRoot): void => {
-  writeLocal(STORAGE_KEYS.root, root);
-  writeLocal(STORAGE_KEYS.tasks, root.tasks);
-  writeLocal(STORAGE_KEYS.occurrences, root.occurrences);
-  writeLocal(STORAGE_KEYS.rewardEvents, root.rewardEvents);
-  writeLocal(STORAGE_KEYS.prefs, root.prefs);
+export const readStoredData = async (): Promise<string> => {
+  let legacy: string | null = null;
+  try {
+    legacy = localStorage.getItem("sb:root");
+  } catch {
+    /* Storage may be disabled. */
+  }
+  try {
+    const db = await database();
+    const root = await new Promise<unknown>((resolve, reject) => {
+      const request = db
+        .transaction("notebook", "readonly")
+        .objectStore("notebook")
+        .get("root");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    if (root !== undefined) return JSON.stringify(root, null, 2);
+  } catch (error) {
+    if (!legacy) throw error;
+  }
+  if (legacy) return legacy;
+  throw new Error("No stored notebook could be read in this browser.");
 };

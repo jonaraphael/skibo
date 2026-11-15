@@ -1,399 +1,246 @@
 import { create } from "zustand";
 import {
-  Difficulty,
-  DifficultySort,
+  Completion,
+  JournalEvent,
+  Notebook,
   Preferences,
-  RewardDefinition,
-  RewardEvent,
+  Reward,
   Task,
-  TaskOccurrence
+  TaskPeriod,
 } from "./types";
-import { pushDebugLog } from "../lib/debug/logger";
-import { createDefaultPrefs, createDefaultPersistedRoot, PersistedRoot } from "../lib/persistence/migration";
-import { readPersistedRoot, writePersistedRoot } from "../lib/persistence/storage";
-import { buildOccurrences } from "../lib/schedule/occurrenceGenerator";
-import { evaluateRewardForCompletion, summarizeRewardEvents } from "../lib/rewards/rewardEngine";
-import { REWARD_POOL } from "../lib/rewards/rewardPools";
+import {
+  emptyNotebook,
+  parseNotebook,
+  readBackup,
+} from "../lib/persistence/notebook";
+import { loadNotebook, saveNotebook } from "../lib/persistence/storage";
+import { completePeriod, undoEvent } from "../lib/tasks/actions";
 import { createCryptoRng } from "../lib/rewards/rng";
-import { applyTaskCompletion } from "../lib/tasks/completion";
-import { normalizeTask, normalizeTasks } from "../lib/tasks/normalizeTask";
-import { sortOccurrences } from "../lib/tasks/sortTasks";
+import { addDays, dayKey, periodFor } from "../lib/schedule/calendar";
+import { trayRewards } from "../lib/rewards/engine";
 
-const randomId = (): string => {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
-};
-
-const currentTimezone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-interface TasksSlice {
-  tasks: Task[];
-  addTask: (input: Omit<Task, "id" | "createdAtIso" | "updatedAtIso" | "archivedAtIso" | "completionCount" | "lastCompletedAtIso">) => Task;
-  updateTask: (taskId: string, patch: Partial<Task>) => void;
-  archiveTask: (taskId: string) => void;
-  deleteTask: (taskId: string) => void;
+export const randomId = () => crypto.randomUUID();
+interface Toast {
+  message: string;
+  undo?: () => void;
 }
-
-interface OccurrenceSlice {
-  occurrences: TaskOccurrence[];
-  rebuildOccurrences: (nowIso?: string) => void;
-  markOccurrenceComplete: (taskId: string, occurrenceId: string, nowIso?: string) => void;
+interface AppState {
+  data: Notebook;
+  loaded: boolean;
+  loadError: string | null;
+  storageError: string | null;
+  pending: number;
+  toast: Toast | null;
+  reveal: Completion | null;
+  initialize: () => Promise<void>;
+  change: (update: (data: Notebook) => Notebook) => boolean;
+  saveTask: (input: Omit<Task, "id" | "createdAt">, id?: string) => boolean;
+  setTaskStatus: (id: string, status: Task["status"]) => void;
+  complete: (period: TaskPeriod) => void;
+  skip: (period: TaskPeriod) => void;
+  snooze: (period: TaskPeriod) => void;
+  undo: (eventId: string) => void;
+  enjoy: (eventId: string) => void;
+  saveReward: (input: Omit<Reward, "id">, id?: string) => boolean;
+  preferences: (patch: Partial<Preferences>) => void;
+  importBackup: (json: string) => void;
+  notify: (toast: Toast | null) => void;
+  dismissReveal: () => void;
 }
-
-interface RewardSlice {
-  rewardEvents: RewardEvent[];
-  rewardPool: RewardDefinition[];
-  activeRewardEvent: RewardEvent | null;
-  dismissRewardModal: () => void;
-}
-
-interface PrefsSlice {
-  prefs: Preferences;
-  setDifficultySort: (sort: DifficultySort) => void;
-  setReduceMotion: (enabled: boolean) => void;
-  setTimezone: (timezone: string) => void;
-}
-
-interface UiSlice {
-  difficultyFilter: Difficulty | "all";
-  setDifficultyFilter: (difficulty: Difficulty | "all") => void;
-}
-
-interface SessionSlice {
-  hydrated: boolean;
-  initializeFromStorage: () => void;
-  exportBackup: () => string;
-  importBackup: (jsonText: string) => boolean;
-}
-
-export type SkinnerState = TasksSlice & OccurrenceSlice & RewardSlice & PrefsSlice & UiSlice & SessionSlice;
-
-const persistState = (state: SkinnerState): void => {
-  const root: PersistedRoot = {
-    version: 1,
-    tasks: state.tasks,
-    occurrences: state.occurrences,
-    rewardEvents: state.rewardEvents,
-    prefs: state.prefs
-  };
-  writePersistedRoot(root);
-};
-
-const getTaskStreak = (taskId: string, events: RewardEvent[], nowIso: string): number => {
-  const days = events
-    .filter((event) => event.taskId === taskId)
-    .map((event) => {
-      const d = new Date(event.createdAtIso);
-      return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
-    });
-
-  const now = new Date(nowIso);
-  const dayKey = `${now.getUTCFullYear()}-${now.getUTCMonth()}-${now.getUTCDate()}`;
-  const unique = Array.from(new Set([...days, dayKey]));
-  if (unique.length === 0) {
-    return 1;
-  }
-
-  const sorted = unique
-    .map((key) => {
-      const [y, m, d] = key.split("-").map(Number);
-      return Date.UTC(y, m, d);
-    })
-    .sort((a, b) => b - a);
-
-  let streak = 1;
-  for (let i = 1; i < sorted.length; i += 1) {
-    const diffDays = Math.round((sorted[i - 1] - sorted[i]) / (24 * 60 * 60 * 1000));
-    if (diffDays === 1) {
-      streak += 1;
-    } else {
-      break;
-    }
-  }
-  return streak;
-};
-
-const defaultRoot = createDefaultPersistedRoot();
-
-export const useSkinnerStore = create<SkinnerState>((set, get) => ({
-  tasks: defaultRoot.tasks,
-  occurrences: defaultRoot.occurrences,
-  rewardEvents: defaultRoot.rewardEvents,
-  rewardPool: REWARD_POOL,
-  activeRewardEvent: null,
-  prefs: createDefaultPrefs(),
-  difficultyFilter: "all",
-  hydrated: false,
-
-  initializeFromStorage: () => {
-    const restored = readPersistedRoot();
-    const normalizedTasks = normalizeTasks(restored.tasks, restored.prefs.timezone || currentTimezone());
-    const nextPrefs = {
-      ...createDefaultPrefs(),
-      ...restored.prefs
-    };
-
-    set((state) => ({
-      ...state,
-      tasks: normalizedTasks,
-      occurrences: Array.isArray(restored.occurrences) ? restored.occurrences : [],
-      rewardEvents: Array.isArray(restored.rewardEvents) ? restored.rewardEvents : [],
-      prefs: nextPrefs,
-      hydrated: true
-    }));
-
-    get().rebuildOccurrences();
-    pushDebugLog("info", "hydrate.complete", {
-      tasks: normalizedTasks.length,
-      occurrences: restored.occurrences.length,
-      rewardEvents: restored.rewardEvents.length
-    });
-  },
-
-  addTask: (input) => {
-    const nowIso = new Date().toISOString();
-    const task: Task = {
-      ...input,
-      id: randomId(),
-      createdAtIso: nowIso,
-      updatedAtIso: nowIso,
-      archivedAtIso: null,
-      completionCount: 0,
-      lastCompletedAtIso: null
-    };
-
-    set((state) => {
-      const next = { ...state, tasks: [task, ...state.tasks] };
-      persistState(next);
-      return next;
-    });
-
-    get().rebuildOccurrences();
-    pushDebugLog("info", "task.add", { taskId: task.id });
-    return task;
-  },
-
-  updateTask: (taskId, patch) => {
-    const nowIso = new Date().toISOString();
-    set((state) => {
-      const tasks = state.tasks.map((task) => {
-        if (task.id !== taskId) {
-          return task;
-        }
-        const merged = normalizeTask(
-          {
-            ...task,
-            ...patch,
-            id: task.id,
-            updatedAtIso: nowIso
-          },
-          state.prefs.timezone
-        );
-        return merged ?? { ...task, ...patch, updatedAtIso: nowIso };
-      });
-      const next = { ...state, tasks };
-      persistState(next);
-      return next;
-    });
-    get().rebuildOccurrences();
-    pushDebugLog("info", "task.update", { taskId });
-  },
-
-  archiveTask: (taskId) => {
-    const nowIso = new Date().toISOString();
-    set((state) => {
-      const tasks = state.tasks.map((task) =>
-        task.id === taskId ? { ...task, active: false, archivedAtIso: nowIso, updatedAtIso: nowIso } : task
-      );
-      const next = { ...state, tasks };
-      persistState(next);
-      return next;
-    });
-    get().rebuildOccurrences();
-    pushDebugLog("info", "task.archive", { taskId });
-  },
-
-  deleteTask: (taskId) => {
-    set((state) => {
-      const tasks = state.tasks.filter((task) => task.id !== taskId);
-      const occurrences = state.occurrences.filter((occ) => occ.taskId !== taskId);
-      const rewardEvents = state.rewardEvents.filter((event) => event.taskId !== taskId);
-      const next = { ...state, tasks, occurrences, rewardEvents };
-      persistState(next);
-      return next;
-    });
-    pushDebugLog("warn", "task.delete", { taskId });
-  },
-
-  rebuildOccurrences: (nowIso) => {
-    const when = nowIso ?? new Date().toISOString();
-    set((state) => {
-      const occurrences = buildOccurrences({
-        tasks: state.tasks,
-        existing: state.occurrences,
-        nowIso: when,
-        lookbackDays: state.prefs.lookbackDays,
-        horizonDays: state.prefs.horizonDays
-      });
-      const next = { ...state, occurrences };
-      persistState(next);
-      return next;
-    });
-  },
-
-  markOccurrenceComplete: (taskId, occurrenceId, nowIso) => {
-    const when = nowIso ?? new Date().toISOString();
-    const state = get();
-    const task = state.tasks.find((candidate) => candidate.id === taskId);
-    if (!task) {
-      return;
-    }
-
-    set((current) => {
-      const occurrences = current.occurrences.map((occurrence) => {
-        if (occurrence.occurrenceId !== occurrenceId) {
-          return occurrence;
-        }
-        return {
-          ...occurrence,
-          completedAtIso: occurrence.completedAtIso ?? when,
-          isOverdue: false
-        };
-      });
-
-      const tasks = current.tasks.map((candidate) =>
-        candidate.id === taskId ? applyTaskCompletion(candidate, when) : candidate
-      );
-
-      const streak = getTaskStreak(taskId, current.rewardEvents, when);
-      const historyDesc = [...current.rewardEvents].sort((a, b) => b.createdAtIso.localeCompare(a.createdAtIso));
-      const taskForReward = tasks.find((candidate) => candidate.id === taskId) ?? task;
-      const evaluation = evaluateRewardForCompletion({
-        task: taskForReward,
-        occurrenceId,
-        nowIso: when,
-        streak,
-        history: historyDesc,
-        pool: current.rewardPool,
-        rng: createCryptoRng()
-      });
-
-      const rewardEvents = [evaluation.event, ...current.rewardEvents];
-      const next = {
-        ...current,
-        tasks,
-        occurrences,
-        rewardEvents,
-        activeRewardEvent: evaluation.event.triggered ? evaluation.event : null
-      };
-      persistState(next);
-      pushDebugLog("info", "completion.reward", {
-        taskId,
-        occurrenceId,
-        roll: evaluation.event.roll,
-        triggered: evaluation.event.triggered,
-        rewardId: evaluation.event.rewardId
-      });
-      return next;
-    });
-  },
-
-  dismissRewardModal: () => {
-    set((state) => ({ ...state, activeRewardEvent: null }));
-  },
-
-  setDifficultySort: (sort) => {
-    set((state) => {
-      const next = {
-        ...state,
-        prefs: {
-          ...state.prefs,
-          difficultySort: sort
-        }
-      };
-      persistState(next);
-      return next;
-    });
-  },
-
-  setReduceMotion: (enabled) => {
-    set((state) => {
-      const next = {
-        ...state,
-        prefs: {
-          ...state.prefs,
-          reduceMotion: enabled
-        }
-      };
-      persistState(next);
-      return next;
-    });
-  },
-
-  setTimezone: (timezone) => {
-    set((state) => {
-      const next = {
-        ...state,
-        prefs: {
-          ...state.prefs,
-          timezone
-        }
-      };
-      persistState(next);
-      return next;
-    });
-    get().rebuildOccurrences();
-  },
-
-  setDifficultyFilter: (difficulty) => {
-    set((state) => ({ ...state, difficultyFilter: difficulty }));
-  },
-
-  exportBackup: () => {
-    const state = get();
-    const root: PersistedRoot = {
-      version: 1,
-      tasks: state.tasks,
-      occurrences: state.occurrences,
-      rewardEvents: state.rewardEvents,
-      prefs: state.prefs
-    };
-    return JSON.stringify(root, null, 2);
-  },
-
-  importBackup: (jsonText) => {
+let initialization: Promise<void> | undefined;
+let writes: Promise<void> = Promise.resolve();
+const errorMessage = (error: unknown) =>
+  error instanceof Error
+    ? error.message
+    : "Storage isn't available. Enable browser storage, then reload.";
+export const useApp = create<AppState>((set, get) => ({
+  data: emptyNotebook(),
+  loaded: false,
+  loadError: null,
+  storageError: null,
+  pending: 0,
+  toast: null,
+  reveal: null,
+  initialize: () =>
+    (initialization ??= loadNotebook()
+      .then((data) => {
+        set({ data, loaded: true });
+      })
+      .catch((error) => {
+        set({ loadError: errorMessage(error) });
+      })),
+  change: (update) => {
+    if (!get().loaded || get().storageError) return false;
+    const data = { ...update(get().data), revision: get().data.revision + 1 };
     try {
-      const parsed = JSON.parse(jsonText) as PersistedRoot;
-      const migrated = {
-        ...createDefaultPersistedRoot(),
-        ...parsed,
-        prefs: {
-          ...createDefaultPrefs(),
-          ...parsed.prefs
-        }
-      };
-
-      set((state) => ({
-        ...state,
-        tasks: normalizeTasks(migrated.tasks, migrated.prefs.timezone),
-        occurrences: Array.isArray(migrated.occurrences) ? migrated.occurrences : [],
-        rewardEvents: Array.isArray(migrated.rewardEvents) ? migrated.rewardEvents : [],
-        prefs: migrated.prefs
-      }));
-
-      persistState(get());
-      get().rebuildOccurrences();
-      return true;
+      parseNotebook(data);
     } catch {
+      get().notify({
+        message: "Please check the task, reward, or schedule before saving.",
+      });
       return false;
     }
-  }
+    set({ data, pending: get().pending + 1 });
+    writes = writes
+      .then(async () => {
+        if (get().storageError) throw new Error(get().storageError!);
+        await saveNotebook(data);
+      })
+      .catch((error) => {
+        set({ storageError: errorMessage(error) });
+      })
+      .finally(() => {
+        set({ pending: get().pending - 1 });
+      });
+    return true;
+  },
+  saveTask: (input, id) => {
+    const task: Task = {
+      ...input,
+      id: id ?? randomId(),
+      createdAt:
+        get().data.tasks.find((t) => t.id === id)?.createdAt ??
+        new Date().toISOString(),
+    };
+    const saved = get().change((d) => ({
+      ...d,
+      tasks: id
+        ? d.tasks.map((t) => (t.id === id ? task : t))
+        : [...d.tasks, task],
+    }));
+    if (!saved) return false;
+    get().notify({
+      message: id ? "Task updated." : "A little intention, added.",
+    });
+    return true;
+  },
+  setTaskStatus: (id, status) => {
+    const previous = get().data.tasks.find((t) => t.id === id)?.status;
+    const changed = get().change((d) => ({
+      ...d,
+      tasks: d.tasks.map((t) => (t.id === id ? { ...t, status } : t)),
+    }));
+    if (!changed) return;
+    get().notify({
+      message:
+        status === "archived"
+          ? "Task archived. History kept."
+          : status === "paused"
+            ? "Task paused."
+            : "Task is active.",
+      undo: () => {
+        if (!previous) return;
+        const restored = get().change((d) => ({
+          ...d,
+          tasks: d.tasks.map((t) =>
+            t.id === id ? { ...t, status: previous } : t,
+          ),
+        }));
+        if (restored) get().notify({ message: "Undone." });
+      },
+    });
+  },
+  complete: (period) => {
+    if (get().reveal?.reward) return;
+    const event = completePeriod(
+      get().data,
+      period,
+      new Date(),
+      createCryptoRng(),
+      randomId(),
+    );
+    if (!event || get().storageError) return;
+    if (!get().change((d) => ({ ...d, events: [...d.events, event] }))) return;
+    set({ reveal: event });
+    get().notify({
+      message: "Done. That counts.",
+      undo: () => get().undo(event.id),
+    });
+  },
+  skip: (period) => {
+    const d = get().data;
+    const current = periodFor(period.task, d.events, new Date(), d.preferences);
+    if (
+      current.key !== period.key ||
+      current.bucket === "done" ||
+      current.bucket === "later"
+    )
+      return;
+    const event: JournalEvent = {
+      id: randomId(),
+      type: "skipped",
+      taskId: period.task.id,
+      taskTitle: period.task.title,
+      period: period.key,
+      at: new Date().toISOString(),
+    };
+    if (!get().change((data) => ({ ...data, events: [...data.events, event] })))
+      return;
+    get().notify({
+      message: "Skipped this time. No roll taken.",
+      undo: () => get().undo(event.id),
+    });
+  },
+  snooze: (period) => {
+    const now = new Date();
+    const event: JournalEvent = {
+      id: randomId(),
+      type: "snoozed",
+      taskId: period.task.id,
+      period: period.key,
+      until: addDays(dayKey(now, get().data.preferences.dayStart), 1),
+      at: now.toISOString(),
+    };
+    if (!get().change((d) => ({ ...d, events: [...d.events, event] }))) return;
+    get().notify({
+      message: "Moved to tomorrow.",
+      undo: () => get().undo(event.id),
+    });
+  },
+  undo: (target) => {
+    const event = undoEvent(get().data, target, new Date(), randomId());
+    if (!event) {
+      get().notify({ message: "That action can no longer be undone." });
+      return;
+    }
+    if (!get().change((d) => ({ ...d, events: [...d.events, event] }))) return;
+    set({ reveal: null });
+    get().notify({ message: "Undone." });
+  },
+  enjoy: (target) => {
+    if (!trayRewards(get().data.events).some((e) => e.id === target)) return;
+    const event: JournalEvent = {
+      id: randomId(),
+      type: "enjoyed",
+      target,
+      at: new Date().toISOString(),
+    };
+    if (!get().change((d) => ({ ...d, events: [...d.events, event] }))) return;
+    set({ reveal: null });
+    get().notify({
+      message: "Enjoy it. You've earned it.",
+      undo: () => get().undo(event.id),
+    });
+  },
+  saveReward: (input, id) => {
+    const reward: Reward = { ...input, id: id ?? randomId() };
+    return get().change((d) => ({
+      ...d,
+      rewards: id
+        ? d.rewards.map((r) => (r.id === id ? reward : r))
+        : [...d.rewards, reward],
+    }));
+  },
+  preferences: (patch) =>
+    get().change((d) => ({
+      ...d,
+      preferences: { ...d.preferences, ...patch },
+    })),
+  importBackup: (json) => {
+    const imported = readBackup(json);
+    if (!get().change((d) => ({ ...imported, revision: d.revision }))) return;
+    set({ reveal: null, toast: { message: "Your backup has been restored." } });
+  },
+  notify: (toast) => set({ toast }),
+  dismissReveal: () => set({ reveal: null }),
 }));
-
-export const selectSortedOccurrences = (state: SkinnerState, nowIso: string): TaskOccurrence[] => {
-  return sortOccurrences(state.occurrences, state.tasks, state.prefs.difficultySort, nowIso);
-};
-
-export const selectRewardStats = (state: SkinnerState) => summarizeRewardEvents(state.rewardEvents);
