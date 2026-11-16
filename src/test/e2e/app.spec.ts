@@ -1,6 +1,5 @@
 import { expect, Page, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import { Notebook } from "../../app/types";
 import { emptyNotebook } from "../../lib/persistence/notebook";
 import { task } from "../fixtures";
 const go = async (page: Page, path = "") => page.goto(`./#${path}`);
@@ -23,7 +22,7 @@ const noOverflow = async (page: Page) =>
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
-const seed = async (page: Page, notebook?: Notebook) => {
+const seed = async (page: Page, notebook?: unknown) => {
   const data = notebook ?? {
     ...emptyNotebook(),
     tasks: [task({ start: "2026-01-31" })],
@@ -827,4 +826,119 @@ test("setup derives Tank, early resets take no draw, and repeated practice stays
     .getByRole("link", { name: "Record" })
     .click();
   await expect(page.getByText("0 of 2 draws", { exact: true })).toBeVisible();
+});
+
+test("an empty notebook from before the taxonomy update opens and upgrades atomically", async ({
+  page,
+}) => {
+  const stored = {
+    ...emptyNotebook(),
+    version: 2,
+    revision: 12,
+    onboarded: true,
+    rewards: [
+      { id: "personal", title: "My coffee", size: "small", active: false },
+    ],
+    preferences: { ...emptyNotebook().preferences, theme: "dark" },
+  };
+  await seed(page, stored);
+  await go(page);
+  await expect(
+    page.getByRole("heading", { name: "Sunday, November 15" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Unable to open your notebook." }),
+  ).toHaveCount(0);
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.reload();
+  await nav(page, "Rewards");
+  await page
+    .getByRole("navigation", { name: "Rewards", exact: true })
+    .getByRole("link", { name: "Menu" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "My coffee", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".menu-card")).toHaveCount(1);
+  await page
+    .getByRole("link", { name: "Settings", exact: true })
+    .filter({ visible: true })
+    .first()
+    .click();
+  const downloading = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "Download backup", exact: true })
+    .click();
+  const download = await downloading;
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream!) chunks.push(chunk);
+  expect(JSON.parse(Buffer.concat(chunks).toString())).toEqual({
+    ...stored,
+    version: 3,
+    revision: 13,
+  });
+  await page.getByLabel("Appearance", { exact: true }).selectOption("light");
+  await expect(page.locator(".save-status")).toHaveText("Saved on this device");
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+});
+
+test("an unreadable notebook offers download, cancellation, and an explicit fresh start", async ({
+  page,
+}, testInfo) => {
+  const oldTask: Record<string, unknown> = { ...task() };
+  delete oldTask.behavior;
+  delete oldTask.rhythmRevision;
+  const stored = {
+    ...emptyNotebook(),
+    version: 2,
+    revision: 7,
+    tasks: [oldTask],
+    onboarded: true,
+  };
+  await seed(page, stored);
+  await go(page);
+  await expect(page.getByRole("alert")).toContainText(
+    "before task rhythms were added",
+  );
+  await page
+    .getByRole("button", { name: "Start a new notebook", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", {
+    name: "Start a new notebook",
+    exact: true,
+  });
+  await dialog
+    .getByRole("button", { name: "Keep existing data", exact: true })
+    .click();
+  await expect(dialog).toHaveCount(0);
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Unable to open your notebook." }),
+  ).toBeVisible();
+  const downloading = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "Download stored data", exact: true })
+    .click();
+  const download = await downloading;
+  const backup = testInfo.outputPath("original-v2.json");
+  await download.saveAs(backup);
+  expect(JSON.parse(await readFile(backup, "utf8"))).toEqual(stored);
+  await page
+    .getByRole("button", { name: "Start a new notebook", exact: true })
+    .click();
+  await dialog
+    .getByRole("button", {
+      name: "Replace this device’s notebook",
+      exact: true,
+    })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Do what you want to do more often." }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "Get started", exact: true }),
+  ).toBeVisible();
 });

@@ -79,3 +79,41 @@ it("round-trips the full notebook and rejects malformed backups instead of clear
     }),
   ).toThrow();
 });
+
+it("opens empty v2 notebooks without losing their menu, settings, or setup progress", () => {
+  const stored = {
+    ...emptyNotebook(),
+    version: 2,
+    revision: 12,
+    onboarded: true,
+    rewards: [
+      { id: "personal", title: "My coffee", size: "small", active: false },
+    ],
+    preferences: {
+      ...emptyNotebook().preferences,
+      theme: "dark",
+      bigRewardCap: null,
+    },
+  };
+  const original = JSON.stringify(stored);
+  expect(readBackup(original)).toEqual({ ...stored, version: 3 });
+  expect(JSON.stringify(stored)).toBe(original);
+  expect(parseNotebook(readBackup(original))).toEqual(readBackup(original));
+});
+it("keeps populated older notebooks and malformed empty notebooks intact", () => {
+  const populated = { ...emptyNotebook(), version: 2, tasks: [task()] };
+  const original = JSON.stringify(populated);
+  expect(() => parseNotebook(populated)).toThrow(
+    "before task rhythms were added",
+  );
+  expect(JSON.stringify(populated)).toBe(original);
+  expect(() =>
+    parseNotebook({ ...emptyNotebook(), version: 2, preferences: {} }),
+  ).toThrow();
+  expect(() =>
+    parseNotebook({ ...emptyNotebook(), version: 2, rewards: [{ id: "bad" }] }),
+  ).toThrow();
+  expect(() =>
+    parseNotebook({ ...emptyNotebook(), version: 2, events: [{ id: "bad" }] }),
+  ).toThrow();
+});

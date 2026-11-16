@@ -111,6 +111,22 @@ const isEvent = (e: unknown): e is JournalEvent => {
 const unique = (entries: { id: string }[]) =>
   new Set(entries.map((e) => e.id)).size === entries.length;
 export const parseNotebook = (value: unknown): Notebook => {
+  // Merely visiting v2 created a notebook, even without adding any tasks.
+  // Empty notebooks have no task behavior to infer; keep the menu and settings.
+  if (object(value) && value.version === 2) {
+    if (
+      Array.isArray(value.tasks) &&
+      value.tasks.length === 0 &&
+      Array.isArray(value.events) &&
+      value.events.length === 0
+    ) {
+      value = { ...value, version: 3 };
+    } else if (Array.isArray(value.tasks) && Array.isArray(value.events)) {
+      throw new Error(
+        "This notebook was saved before task rhythms were added. Download your stored data to keep a copy, or start a new notebook.",
+      );
+    }
+  }
   if (
     !object(value) ||
     value.version !== 3 ||

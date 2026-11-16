@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { Icon } from "../components/Icon";
 import { WorkspaceContext } from "../components/Workspace";
+import { Dialog } from "../components/Dialog";
 import { Toast } from "../components/Toast";
-import { readStoredData } from "../lib/persistence/storage";
+import { readStoredData, resetLocalNotebook } from "../lib/persistence/storage";
 import { RewardReveal } from "../components/RewardReveal";
 import { TaskEditor } from "../screens/TaskEditor";
 import { RewardEditor } from "../screens/RewardEditor";
@@ -25,6 +26,8 @@ export const App = () => {
   const [now, setNow] = useState(new Date());
   const [task, setTask] = useState<Task | null | undefined>();
   const [recoveryError, setRecoveryError] = useState("");
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [resetPending, setResetPending] = useState(false);
   const [reward, setReward] = useState<Reward | null | undefined>();
   useEffect(() => {
     setTask(undefined);
@@ -74,40 +77,94 @@ export const App = () => {
         : location.pathname === "/settings"
           ? "Settings"
           : "Rewards";
+  const downloadStored = () => {
+    void readStoredData()
+      .then(downloadBackup)
+      .catch((error: unknown) =>
+        setRecoveryError(
+          error instanceof Error
+            ? error.message
+            : "The stored data could not be read.",
+        ),
+      );
+  };
   if (state.loadError)
     return (
-      <div className="storage-gate">
-        <Icon name="leaf" size={32} />
-        <h1>Unable to open your notebook.</h1>
-        <p role="alert">{state.loadError}</p>
-        <p>
-          Existing browser data has been kept. Try reopening the app with
-          browser storage enabled.
-        </p>
-        <button
-          className="button primary"
-          onClick={() => window.location.reload()}
-        >
-          Try again
-        </button>
-        <button
-          className="button secondary"
-          onClick={() => {
-            void readStoredData()
-              .then(downloadBackup)
-              .catch((error: unknown) =>
-                setRecoveryError(
-                  error instanceof Error
-                    ? error.message
-                    : "The stored data could not be read.",
-                ),
-              );
-          }}
-        >
-          Download stored data
-        </button>
-        {recoveryError && <p role="alert">{recoveryError}</p>}
-      </div>
+      <>
+        <div className="storage-gate">
+          <Icon name="leaf" size={32} />
+          <h1>Unable to open your notebook.</h1>
+          <p role="alert">{state.loadError}</p>
+          <p>
+            Your stored data has been kept. You can download it before starting
+            a new notebook.
+          </p>
+          <button
+            className="button primary"
+            onClick={() => window.location.reload()}
+          >
+            Try again
+          </button>
+          <button className="button secondary" onClick={downloadStored}>
+            Download stored data
+          </button>
+          <button className="text-link" onClick={() => setConfirmReset(true)}>
+            Start a new notebook
+          </button>
+          {recoveryError && <p role="alert">{recoveryError}</p>}
+        </div>
+        {confirmReset && (
+          <Dialog
+            title="Start a new notebook"
+            close={() => {
+              if (!resetPending) setConfirmReset(false);
+            }}
+          >
+            <h2>Start fresh on this device?</h2>
+            <p>
+              This replaces the notebook saved in this browser. Download your
+              stored data first if you want to keep it. Synced account notebooks
+              are not deleted.
+            </p>
+            <button
+              className="button secondary"
+              disabled={resetPending}
+              onClick={downloadStored}
+            >
+              Download stored data
+            </button>
+            <button
+              className="button primary"
+              disabled={resetPending}
+              onClick={async () => {
+                setResetPending(true);
+                setRecoveryError("");
+                try {
+                  await resetLocalNotebook();
+                  window.location.reload();
+                } catch (error) {
+                  setRecoveryError(
+                    error instanceof Error
+                      ? error.message
+                      : "Could not start a new notebook.",
+                  );
+                  setResetPending(false);
+                }
+              }}
+            >
+              {resetPending ? "Starting…" : "Replace this device’s notebook"}
+            </button>
+            <button
+              className="text-link"
+              disabled={resetPending}
+              onClick={() => setConfirmReset(false)}
+            >
+              Keep existing data
+            </button>
+            {recoveryError && <p role="alert">{recoveryError}</p>}
+          </Dialog>
+        )}
+      </>
     );
   if (!state.loaded)
     return (
