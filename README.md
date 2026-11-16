@@ -4,11 +4,13 @@ A calmer place for small intentions, with a chance at something good.
 
 Add a task, choose rewards that matter to you, and make a little progress. Each completion gets a 30% reward roll. Wins stay in your tray until you enjoy them.
 
+New notebooks come with 177 personal reward ideas, from good coffee and garden upgrades to climbing gear and time off, with big rewards capped at one per week by default. The walkthrough connects a habit that's hard to start with reward examples at every tier, lets you add your own, and finishes by inviting you to write down more habits.
+
 - **Today:** one row per task, grouped into overdue, today, anytime, and done.
 - **Plan:** a week forecast, task search, and active/paused/archived intentions.
 - **Rewards:** your tray, an editable menu, payout forecasts, and the full completion record.
 - **Your rhythm:** local dates, a custom day-start hour, light/dark/system themes, reduced motion, optional sound, and a weekly cap on big rewards.
-- **Your notebook:** IndexedDB storage, offline operation after the first visit, validated JSON backups, and one-time import from the original `sb:root` data.
+- **Your notebook:** IndexedDB storage, offline operation after the first visit, and validated JSON backups.
 
 ## Schedules and rewards
 
@@ -31,7 +33,7 @@ Completion, skip, snooze, and enjoyment actions have a five-second undo; hoverin
 ```sh
 npm ci
 npm run dev
-npm test                 # deterministic calendar, rewards, import, and undo tests
+npm test                 # deterministic calendar, rewards, backup, and undo tests
 npm run build            # strict TypeScript + production PWA
 npx playwright install chromium
 npm run test:e2e         # production app on mobile and desktop Chromium
@@ -41,7 +43,7 @@ npm run test:e2e         # production app on mobile and desktop Chromium
 
 ## Data and recovery
 
-A version 2 notebook stores tasks, the reward menu, preferences, and an append-only action journal in one IndexedDB transaction. Generated occurrences are no longer stored. Original `sb:root` data stays untouched after import. Import preserves surviving original completion and reward records; history already discarded by the old app cannot be recovered. Dates follow the device's local timezone. Original wins appear in the tray because the old app did not record enjoyment. The loading-error screen can export raw stored data for recovery.
+A notebook stores tasks, the reward menu, preferences, and an append-only action journal in one IndexedDB transaction. Occurrences are calculated from schedules. Dates follow the device's local timezone. The loading-error screen can export raw stored data for recovery.
 
 Use **Settings → Download backup** before clearing browser data or moving devices. Restore validates the complete file before offering to replace the notebook. Other tabs cannot silently overwrite a newer revision: a stale tab stops saving and offers an export of its current state. Use one tab for editing; reload other tabs to see the saved version.
 

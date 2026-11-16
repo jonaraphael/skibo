@@ -71,17 +71,40 @@ test("first intention, reward, undo, saved roll, menu, record, and reload", asyn
     fullPage: true,
   });
   await page.getByRole("button", { name: "Let's begin" }).click();
-  await page.getByLabel("My first intention").fill("Take a little walk");
-  await page.getByRole("button", { name: "Make a little space" }).click();
+  await page.getByLabel("A habit I want to build").fill("Take a little walk");
+  await page
+    .getByRole("button", { name: "Give it something to look forward to" })
+    .click();
+  await expect(page.getByText("“Take a little walk”")).toBeVisible();
+  await page.getByRole("radio", { name: "Heavy effort, big rewards" }).check();
+  await noOverflow(page);
+  await page.screenshot({
+    path: testInfo.outputPath("habit-rewards.png"),
+    fullPage: true,
+  });
+  await page.getByText("Add rewards of your own").click();
   await page
     .getByLabel("Small reward", { exact: true })
     .fill("A perfect flat white");
-  await page.getByRole("button", { name: "Looks good to me" }).click();
+  await page.getByRole("button", { name: "Try it with this habit" }).click();
   await page.getByRole("button", { name: "Try a practice pull" }).click();
   await expect(
     page.getByText("This practice always wins.", { exact: false }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Start my day" }).click();
+  await expect(
+    page.getByRole("heading", { name: "New climbing shoes" }),
+  ).toBeVisible();
+  await expect(page.getByText(/Write down as many habits/)).toBeVisible();
+  await page.getByRole("button", { name: "Write down my habits" }).click();
+  await expect(page).toHaveURL(/#\/plan$/);
+  const habitSheet = page.getByRole("dialog", { name: "A new intention" });
+  await expect(habitSheet).toBeVisible();
+  await habitSheet.getByLabel("Task name").fill("Water the indoor plants");
+  await habitSheet
+    .getByRole("button", { name: "Add task", exact: true })
+    .click();
+  await expect(habitSheet).toHaveCount(0);
+  await nav(page, "Today");
   await expect(
     page.getByRole("heading", { name: "A little progress, every day." }),
   ).toBeVisible();
@@ -93,7 +116,9 @@ test("first intention, reward, undo, saved roll, menu, record, and reload", asyn
     .click();
   const reveal = page.getByRole("dialog", { name: "Something good, earned" });
   await expect(
-    reveal.getByRole("heading", { name: "A perfect flat white" }),
+    reveal.getByRole("heading", {
+      name: "Fancy coffee at your favorite local café",
+    }),
   ).toBeVisible();
   await noOverflow(page);
   await page.screenshot({
@@ -118,7 +143,9 @@ test("first intention, reward, undo, saved roll, menu, record, and reload", asyn
     .getByRole("button", { name: "Complete Take a little walk", exact: true })
     .click();
   await expect(
-    reveal.getByRole("heading", { name: "A perfect flat white" }),
+    reveal.getByRole("heading", {
+      name: "Fancy coffee at your favorite local café",
+    }),
   ).toBeVisible();
   await reveal.getByRole("button", { name: "Keep in tray" }).click();
   await page
@@ -150,12 +177,18 @@ test("first intention, reward, undo, saved roll, menu, record, and reload", asyn
   ).toBeVisible();
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "A perfect flat white" }),
+    page.getByRole("heading", {
+      name: "Fancy coffee at your favorite local café",
+    }),
   ).toBeVisible();
   await page
     .getByRole("navigation", { name: "Rewards", exact: true })
     .getByRole("link", { name: "The menu" })
     .click();
+  await expect(page.locator(".menu-card")).toHaveCount(178);
+  await expect(
+    page.getByRole("heading", { name: "A perfect flat white" }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Add reward", exact: true }).click();
   await page.getByLabel("Reward name").fill("An afternoon at the museum");
   await page
@@ -169,7 +202,7 @@ test("first intention, reward, undo, saved roll, menu, record, and reload", asyn
   await expect(page.locator(".save-status")).toHaveText("Saved on this device");
   await page.screenshot({
     path: testInfo.outputPath("menu.png"),
-    fullPage: true,
+    fullPage: false,
   });
   await page.reload();
   await expect(
@@ -281,49 +314,23 @@ test("plan, custom schedules, pause, archive, undo and file backup", async ({
   );
 });
 
-test("imports existing data once, stays in the Pages scope, and survives offline reload", async ({
+test("keeps the notebook in the Pages scope and survives offline reload", async ({
   page,
   context,
   baseURL,
 }) => {
-  const original = {
-    version: 1,
-    tasks: [
-      {
-        id: "old",
-        title: "Keep my original task",
-        kind: "deadline",
-        difficulty: "easy",
-        active: true,
-        createdAtIso: "2026-01-01T12:00:00.000Z",
-        dueAtIso: null,
-      },
-    ],
-    occurrences: [],
-    rewardEvents: [],
-    prefs: {},
-  };
-  await page.addInitScript((legacy) => {
-    if (!localStorage.getItem("sb:root"))
-      localStorage.setItem("sb:root", JSON.stringify(legacy));
-  }, original);
+  await seed(page);
   await go(page);
-  await expect(
-    page.getByText("Keep my original task", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("Take a walk", { exact: true })).toBeVisible();
   expect(new URL(page.url()).pathname).toBe(new URL(baseURL!).pathname);
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
   });
   await page.reload();
-  await expect(
-    page.getByText("Keep my original task", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("Take a walk", { exact: true })).toBeVisible();
   await context.setOffline(true);
   await page.reload();
-  await expect(
-    page.getByText("Keep my original task", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("Take a walk", { exact: true })).toBeVisible();
 });
 
 test("a stale tab cannot overwrite a saved notebook", async ({

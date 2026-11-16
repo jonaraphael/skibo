@@ -87,7 +87,8 @@ export const RewardEditor = ({
       </form>
       <details className="suggestions">
         <summary>
-          Need a little inspiration? <span>90 ideas</span>
+          Need a little inspiration?{" "}
+          <span>{REWARD_SUGGESTIONS.length} ideas</span>
         </summary>
         <label className="field">
           <span>Search reward ideas</span>

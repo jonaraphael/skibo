@@ -1,5 +1,4 @@
 import {
-  Completion,
   JournalEvent,
   Notebook,
   Preferences,
@@ -7,21 +6,21 @@ import {
   Schedule,
   Task,
 } from "../../app/types";
-import { dateKey, validDate } from "../schedule/calendar";
-import { REWARD_SUGGESTIONS, starterRewards } from "../rewards/rewardPools";
+import { validDate } from "../schedule/calendar";
+import { defaultRewards } from "../rewards/rewardPools";
 
 export const defaultPreferences = (): Preferences => ({
   theme: "system",
   reduceMotion: false,
   sound: false,
   dayStart: 0,
-  bigRewardCap: null,
+  bigRewardCap: 1,
 });
 export const emptyNotebook = (): Notebook => ({
   version: 2,
   revision: 0,
   tasks: [],
-  rewards: starterRewards(),
+  rewards: defaultRewards(),
   events: [],
   preferences: defaultPreferences(),
   onboarded: false,
@@ -137,149 +136,5 @@ export const parseNotebook = (value: unknown): Notebook => {
   return value as unknown as Notebook;
 };
 
-// The old key is left intact, including on any import failure.
-export const importLegacy = (value: unknown): Notebook => {
-  if (
-    !object(value) ||
-    value.version !== 1 ||
-    !Array.isArray(value.tasks) ||
-    !Array.isArray(value.rewardEvents) ||
-    !Array.isArray(value.occurrences)
-  )
-    throw new Error(
-      "The old notebook could not be read. Export or recover the original sb:root before continuing.",
-    );
-  const data = emptyNotebook();
-  const effort = { easy: "light", medium: "solid", hard: "heavy" } as const;
-  data.tasks = value.tasks.map((input): Task => {
-    if (
-      !object(input) ||
-      !id(input.id) ||
-      !title(input.title) ||
-      !iso(input.createdAtIso) ||
-      !oneOf(input.difficulty, Object.keys(effort))
-    )
-      throw new Error("An old task could not be imported.");
-    const r = object(input.recurrence) ? input.recurrence : null;
-    const anchor =
-      r && iso(r.anchorIso)
-        ? new Date(r.anchorIso)
-        : new Date(input.createdAtIso);
-    const due = iso(input.dueAtIso) ? new Date(input.dueAtIso) : null;
-    const schedule: Schedule = {
-      kind:
-        input.kind === "deadline"
-          ? "once"
-          : r?.kind === "interval"
-            ? "after"
-            : oneOf(r?.kind, ["daily", "weekly", "monthly"])
-              ? (r!.kind as Schedule["kind"])
-              : "daily",
-      start:
-        input.kind === "deadline"
-          ? due
-            ? dateKey(due)
-            : null
-          : dateKey(anchor),
-      time: due
-        ? `${String(due.getHours()).padStart(2, "0")}:${String(due.getMinutes()).padStart(2, "0")}`
-        : "",
-      every: integer(r?.interval, 1, 365) ? r.interval : 1,
-      weekdays:
-        Array.isArray(r?.daysOfWeek) && r.daysOfWeek.length
-          ? (r.daysOfWeek as number[])
-          : [anchor.getDay()],
-      monthDay: integer(r?.dayOfMonth, 1, 31) ? r.dayOfMonth : anchor.getDate(),
-      unit: oneOf(r?.intervalUnit, ["hours", "days", "weeks"])
-        ? (r!.intervalUnit as Schedule["unit"])
-        : "days",
-      ...(object(r?.nthWeekday)
-        ? { nthWeekday: r.nthWeekday as unknown as Schedule["nthWeekday"] }
-        : {}),
-    };
-    return {
-      id: input.id,
-      title: input.title,
-      notes: text(input.notes) ? input.notes : "",
-      effort: effort[input.difficulty as keyof typeof effort],
-      status: input.archivedAtIso
-        ? "archived"
-        : input.active === false
-          ? "paused"
-          : "active",
-      schedule,
-      createdAt: input.createdAtIso,
-    };
-  });
-  data.rewards = REWARD_SUGGESTIONS.map((r) => ({ ...r }));
-  const taskMap = new Map(data.tasks.map((t) => [t.id, t]));
-  const importedPeriods = new Set<string>();
-  const events: Completion[] = value.rewardEvents.map((input): Completion => {
-    if (
-      !object(input) ||
-      !id(input.id) ||
-      !id(input.taskId) ||
-      !iso(input.createdAtIso) ||
-      !taskMap.has(input.taskId) ||
-      typeof input.roll !== "number" ||
-      typeof input.triggered !== "boolean"
-    )
-      throw new Error("Old completion history could not be imported.");
-    const task = taskMap.get(input.taskId)!;
-    const period = text(input.occurrenceId)
-      ? input.occurrenceId
-      : `${task.id}:legacy:${input.id}`;
-    importedPeriods.add(period);
-    const reward = data.rewards.find((r) => r.id === input.rewardId);
-    return {
-      id: input.id,
-      type: "completed",
-      taskId: task.id,
-      taskTitle: task.title,
-      period: task.schedule.kind === "once" ? `${task.id}:once` : period,
-      at: input.createdAtIso,
-      roll: input.roll,
-      reward: input.triggered
-        ? (reward ?? {
-            id: `legacy-${input.id}`,
-            title: "Reward from your previous notebook",
-            size: "small",
-            active: true,
-          })
-        : null,
-    };
-  });
-  for (const input of value.occurrences) {
-    if (!object(input) || !iso(input.completedAtIso)) continue;
-    if (
-      !id(input.taskId) ||
-      !taskMap.has(input.taskId) ||
-      !text(input.occurrenceId)
-    )
-      throw new Error("An old completed task could not be imported.");
-    if (importedPeriods.has(input.occurrenceId)) continue;
-    const task = taskMap.get(input.taskId)!;
-    events.push({
-      id: `legacy-occ-${input.occurrenceId}`,
-      type: "completed",
-      taskId: task.id,
-      taskTitle: task.title,
-      period:
-        task.schedule.kind === "once" ? `${task.id}:once` : input.occurrenceId,
-      at: input.completedAtIso,
-      roll: 0.999,
-      reward: null,
-    });
-  }
-  data.events = events.sort((a, b) => a.at.localeCompare(b.at));
-  data.onboarded = data.tasks.length > 0;
-  if (object(value.prefs) && typeof value.prefs.reduceMotion === "boolean")
-    data.preferences.reduceMotion = value.prefs.reduceMotion;
-  return parseNotebook(data);
-};
-export const readBackup = (json: string): Notebook => {
-  const value: unknown = JSON.parse(json);
-  return object(value) && value.version === 1
-    ? importLegacy(value)
-    : parseNotebook(value);
-};
+export const readBackup = (json: string): Notebook =>
+  parseNotebook(JSON.parse(json));

@@ -85,7 +85,7 @@ it("renormalizes missing sizes and respects the weekly big-reward cap", () => {
     period: "old",
     at: now.toISOString(),
     roll: 0.1,
-    reward: data.rewards[2],
+    reward: data.rewards.find((r) => r.size === "big")!,
   } as Completion);
   const rng = new SeededRng(999);
   for (let i = 0; i < 1000; i++)

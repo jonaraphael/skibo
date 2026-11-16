@@ -204,7 +204,6 @@ export const Settings = () => {
           )}
           <p className="setting-note">
             Includes tasks, your menu, every recorded action, and preferences.
-            Backups from the original SkinnerBox are supported.
           </p>
         </section>
         <section className="settings-panel about-panel">

@@ -6,12 +6,13 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { useApp } from "../app/store";
 import { emptyNotebook, parseNotebook } from "../lib/persistence/notebook";
 import { saveNotebook } from "../lib/persistence/storage";
-import { REWARD_SUGGESTIONS } from "../lib/rewards/rewardPools";
+import { drawReward } from "../lib/rewards/engine";
 import { periodFor } from "../lib/schedule/calendar";
 import { WorkspaceContext } from "../components/Workspace";
 import { Toast } from "../components/Toast";
@@ -79,19 +80,76 @@ it("normalizes an invalid hidden field when switching schedule modes", () => {
   expect(useApp.getState().data.tasks).toHaveLength(1);
   expect(() => parseNotebook(useApp.getState().data)).not.toThrow();
 });
-it("rejects whitespace onboarding rewards and personalizes one reward of each size", () => {
-  useApp.setState({
-    data: { ...emptyNotebook(), tasks: [task()], rewards: REWARD_SUGGESTIONS },
-  });
+it("connects a recurring habit to tier examples and its saved reward effort", () => {
   render(
     <MemoryRouter>
       <Welcome />
     </MemoryRouter>,
   );
+  fireEvent.click(screen.getByRole("button", { name: "Let's begin" }));
+  fireEvent.change(screen.getByLabelText("A habit I want to build"), {
+    target: { value: "Do ten minutes of mobility" },
+  });
+  fireEvent.change(screen.getByLabelText("How often?"), {
+    target: { value: "weekly" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "Give it something to look forward to",
+    }),
+  );
+  expect(screen.getByText("“Do ten minutes of mobility”")).toBeVisible();
+  for (const example of [
+    "One seed packet chosen purely for looks",
+    "Send the favorite climbing shoes out for a resole",
+    "A second raised bed, or a cold frame for the one you have",
+  ])
+    expect(screen.getByText(example)).toBeVisible();
+  fireEvent.click(
+    screen.getByRole("radio", { name: "Heavy effort, big rewards" }),
+  );
+  expect(screen.getByRole("status")).toHaveTextContent(
+    "10% small, 35% medium, 55% big",
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Try it with this habit" }),
+  );
+  const data = useApp.getState().data;
+  expect(data.tasks).toHaveLength(1);
+  expect(data.tasks[0]).toMatchObject({
+    title: "Do ten minutes of mobility",
+    effort: "heavy",
+    schedule: { kind: "weekly" },
+  });
+  expect(data.rewards).toHaveLength(177);
+  const values = [0.1, 0.9, 0];
+  expect(
+    drawReward(data.tasks[0].effort, data, now, {
+      float01: () => values.shift()!,
+    }).reward?.size,
+  ).toBe("big");
+  fireEvent.click(screen.getByRole("button", { name: "Try a practice pull" }));
+  expect(
+    screen.getByRole("heading", { name: "New climbing shoes" }),
+  ).toBeVisible();
+  expect(useApp.getState().data.events).toHaveLength(0);
+  expect(useApp.getState().data.onboarded).toBe(false);
+});
+it("adds optional personal rewards without replacing the default menu", () => {
+  useApp.setState({ data: { ...emptyNotebook(), tasks: [task()] } });
+  const originalRewards = useApp.getState().data.rewards;
+  render(
+    <MemoryRouter>
+      <Welcome />
+    </MemoryRouter>,
+  );
+  fireEvent.click(screen.getByText("Add rewards of your own"));
   fireEvent.change(screen.getByLabelText("Small reward"), {
     target: { value: "   " },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Looks good to me" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Try it with this habit" }),
+  );
   expect(screen.getByRole("alert")).toBeVisible();
   expect(useApp.getState().data.rewards[0].title.trim()).not.toBe("");
   fireEvent.change(screen.getByLabelText("Small reward"), {
@@ -103,13 +161,87 @@ it("rejects whitespace onboarding rewards and personalizes one reward of each si
   fireEvent.change(screen.getByLabelText("Big reward"), {
     target: { value: "My big reward" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Looks good to me" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Try it with this habit" }),
+  );
+  expect(useApp.getState().data.rewards).toHaveLength(180);
+  expect(useApp.getState().data.rewards.slice(0, 177)).toEqual(originalRewards);
   expect(
-    useApp.getState().data.rewards.find((r) => r.size === "medium")?.title,
-  ).toBe("My medium reward");
+    useApp.getState().data.rewards.find((r) => r.title === "My medium reward")
+      ?.size,
+  ).toBe("medium");
   expect(
-    useApp.getState().data.rewards.find((r) => r.size === "big")?.title,
-  ).toBe("My big reward");
+    useApp.getState().data.rewards.find((r) => r.title === "My big reward")
+      ?.size,
+  ).toBe("big");
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Try it with this habit" }),
+  );
+  expect(useApp.getState().data.rewards).toHaveLength(180);
+});
+it("resumes the same habit, allows revisions, and ends by inviting more habits", () => {
+  const first = { ...task(), effort: "heavy" as const };
+  useApp.setState({ data: { ...emptyNotebook(), tasks: [first] } });
+  render(
+    <MemoryRouter>
+      <WorkspaceContext.Provider value={workspace}>
+        <Welcome />
+      </WorkspaceContext.Provider>
+    </MemoryRouter>,
+  );
+  expect(
+    screen.getByRole("radio", { name: "Heavy effort, big rewards" }),
+  ).toBeChecked();
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  fireEvent.change(screen.getByLabelText("A habit I want to build"), {
+    target: { value: "Stretch after running" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "Give it something to look forward to",
+    }),
+  );
+  fireEvent.click(
+    screen.getByRole("radio", { name: "Light effort, small rewards" }),
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Try it with this habit" }),
+  );
+  expect(useApp.getState().data.tasks).toHaveLength(1);
+  expect(useApp.getState().data.tasks[0]).toMatchObject({
+    id: first.id,
+    title: "Stretch after running",
+    effort: "light",
+  });
+  expect(screen.getByText(/Write down as many habits/)).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Write down my habits" }));
+  expect(useApp.getState().data.onboarded).toBe(true);
+  expect(openTask).toHaveBeenCalledOnce();
+});
+it("blocks advancing the walkthrough when storage is unavailable", () => {
+  useApp.setState({
+    data: { ...emptyNotebook(), tasks: [task()] },
+    storageError: "Saving failed",
+  });
+  render(
+    <MemoryRouter>
+      <Welcome />
+    </MemoryRouter>,
+  );
+  const form = screen
+    .getByRole("group", {
+      name: "What should doing this habit give you a chance to earn?",
+    })
+    .closest("form")!;
+  expect(
+    within(form).getByRole("button", { name: "Try it with this habit" }),
+  ).toBeDisabled();
+  fireEvent.submit(form);
+  expect(useApp.getState().data.onboarded).toBe(false);
+  expect(
+    screen.getByRole("heading", { name: "Make the effort feel worth it." }),
+  ).toBeVisible();
 });
 it("leaves older resolved one-offs in history without showing them on Today", () => {
   const t = {

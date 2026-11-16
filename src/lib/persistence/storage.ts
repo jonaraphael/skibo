@@ -1,5 +1,5 @@
 import { Notebook } from "../../app/types";
-import { emptyNotebook, importLegacy, parseNotebook } from "./notebook";
+import { emptyNotebook, parseNotebook } from "./notebook";
 
 const DB_NAME = "skinnerbox";
 let connection: Promise<IDBDatabase> | undefined;
@@ -39,8 +39,7 @@ export const loadNotebook = async (): Promise<Notebook> => {
       try {
         if (request.result) result = parseNotebook(request.result);
         else {
-          const legacy = localStorage.getItem("sb:root");
-          result = legacy ? importLegacy(JSON.parse(legacy)) : emptyNotebook();
+          result = emptyNotebook();
           store.put(result, "root");
         }
       } catch (error) {
@@ -85,26 +84,15 @@ export const saveNotebook = async (data: Notebook): Promise<void> => {
 };
 
 export const readStoredData = async (): Promise<string> => {
-  let legacy: string | null = null;
-  try {
-    legacy = localStorage.getItem("sb:root");
-  } catch {
-    /* Storage may be disabled. */
-  }
-  try {
-    const db = await database();
-    const root = await new Promise<unknown>((resolve, reject) => {
-      const request = db
-        .transaction("notebook", "readonly")
-        .objectStore("notebook")
-        .get("root");
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-    if (root !== undefined) return JSON.stringify(root, null, 2);
-  } catch (error) {
-    if (!legacy) throw error;
-  }
-  if (legacy) return legacy;
+  const db = await database();
+  const root = await new Promise<unknown>((resolve, reject) => {
+    const request = db
+      .transaction("notebook", "readonly")
+      .objectStore("notebook")
+      .get("root");
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  if (root !== undefined) return JSON.stringify(root, null, 2);
   throw new Error("No stored notebook could be read in this browser.");
 };

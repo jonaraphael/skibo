@@ -8,9 +8,9 @@ Today is the home screen. It shows a day record, one open row per active task, a
 
 Plan combines the old Tasks and Upcoming screens. A seven-day view shows calendar forecasts and the next known after-completion date. All Tasks supports search, pause, resume, and archive. Editing a task includes its recent history. Future repeats are predictions rather than stored task instances.
 
-Rewards has three views: Tray for wins waiting to be enjoyed, Menu for active/paused rewards and the current odds, and Record for actual completion outcomes. A cumulative step chart marks reward events in amber. The menu includes three general starters and the original 90 reward texts as editable inspiration. Existing notebooks import their original reward pool.
+Rewards has three views: Tray for wins waiting to be enjoyed, Menu for active/paused rewards and the current odds, and Record for actual completion outcomes. A cumulative step chart marks reward events in amber. The personal default menu has 177 active rewards: 73 small, 68 medium, and 36 big. The ideas emphasize everyday upgrades, gardening, climbing, fewer obligations, and reclaimed time. The same menu supplies editable inspiration.
 
-First run adds a daily intention, personalizes three reward sizes, then offers a clearly labeled practice pull. The practice always wins and never changes history or the tray. Settings covers appearance, motion, sound, day start, reward cap, and file backup/restore.
+First run asks for something the user wants to do regularly but finds hard to start, along with a daily, weekly, or monthly rhythm. Examples at every reward tier help them choose the effort for that same habit, with the actual winning mix explained beside the choice. Adding personal rewards is optional and preserves the rest of the menu. A clearly labeled practice pull imagines completing that habit and shows a reward from its main tier; it always wins and never changes history or the tray. The final invitation is to write down as many habits as come to mind, opening habit entry from Plan. Settings covers appearance, motion, sound, day start, reward cap, and file backup/restore. The default cap is one big reward per week.
 
 ## Visual system
 
@@ -23,12 +23,12 @@ Warm paper and quiet green structure the workspace. Serif headings soften the ap
 - The action journal is preserved. Undo adds a reversal event; it does not erase history. A redraw of the same period reuses its original roll and reward.
 - Reward selection first draws a hit with probability 0.30, then draws a size from the effective mix, then a uniform reward within that size. No hidden per-item eligibility filter changes the published mix.
 - A weekly cap removes big rewards from the eligible mix after the cap is reached. Missing/paused sizes are treated the same way. Menu and engine share the same mix calculation.
-- IndexedDB writes are atomic and revision-checked. Import is strict and non-destructive until explicitly restored. Migration never removes the original localStorage key.
+- IndexedDB writes are atomic and revision-checked. Backup restore validates the complete notebook before replacing it.
 
 ## Verification
 
-Unit tests cover schedules, probability distributions, menu eligibility, caps, undo, and data validation/migration. Browser tests exercise onboarding, practice, completion, reward reveal, roll reuse, enjoyment and undo, menu editing, task management, backup restoration, original data import, scope-safe reload, and offline reload on desktop and mobile. PR CI runs the unit suite in UTC and America/New_York and browser tests under the repository base path.
+Unit tests cover schedules, probability distributions, menu eligibility, caps, undo, and backup validation. Browser tests exercise onboarding, practice, completion, reward reveal, roll reuse, enjoyment and undo, menu editing, task management, backup restoration, scope-safe reload, and offline reload on desktop and mobile. PR CI runs the unit suite in UTC and America/New_York and browser tests under the repository base path.
 
 ## Later phases
 
-Reminders require a separate delivery architecture. Automatic sync requires an identity and conflict model. Both remain outside this browser-local release. The original timezone preference never influenced schedules; this release explicitly follows the device timezone. File backups provide deliberate movement between devices.
+Reminders require a separate delivery architecture. Automatic sync requires an identity and conflict model. Both remain outside this browser-local release. Schedules follow the device timezone. File backups provide deliberate movement between devices.
