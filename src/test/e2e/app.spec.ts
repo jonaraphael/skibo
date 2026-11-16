@@ -101,7 +101,12 @@ test("first task, reward, undo, saved roll, menu, record, and reload", async ({
   });
   await page.getByRole("button", { name: "Get started" }).click();
   await page.getByLabel("First task").fill("Take a little walk");
-  await page.getByRole("radio", { name: "Yes, each session counts" }).check();
+  await expect(page.getByRole("radio", { checked: true })).toHaveCount(0);
+  await page.getByRole("radio", { name: "Yes, each one adds up" }).check();
+  await page.getByRole("radio", { name: "Time since I last did it" }).check();
+  await page.getByRole("radio", { name: "It gets worse each day" }).check();
+  await expect(page.getByLabel("Your task rules")).toContainText("Practice");
+  await noOverflow(page);
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByText("“Take a little walk”")).toBeVisible();
   await page.getByRole("radio", { name: "Heavy effort, big rewards" }).check();
@@ -212,7 +217,7 @@ test("first task, reward, undo, saved roll, menu, record, and reload", async ({
     .getByRole("navigation", { name: "Rewards", exact: true })
     .getByRole("link", { name: "Menu" })
     .click();
-  await expect(page.locator(".menu-card")).toHaveCount(178);
+  await expect(page.locator(".menu-item")).toHaveCount(178);
   await expect(
     page.getByRole("heading", { name: "A perfect flat white" }),
   ).toBeVisible();
@@ -764,11 +769,11 @@ test("setup derives Tank, early resets take no draw, and repeated practice stays
   const editor = page.getByRole("dialog", { name: "New task" });
   await editor.getByLabel("Task name").fill("Water plants");
   await editor
-    .getByRole("radio", { name: "Fine for a while, then costly" })
+    .getByRole("radio", { name: "Nothing, then a sharp cost" })
     .check();
   await expect(editor.getByLabel("Your task rules")).toContainText("Tank");
   await expect(editor.getByLabel("Your task rules")).toContainText(
-    "Earlier completions reset the clock without a draw",
+    "Earlier completions restart the clock with no draw",
   );
   await noOverflow(page);
   await editor.getByRole("button", { name: "Add task", exact: true }).click();
@@ -778,8 +783,9 @@ test("setup derives Tank, early resets take no draw, and repeated practice stays
   await expect(
     page.getByRole("dialog", { name: "Reward", exact: true }),
   ).toHaveCount(0);
+  // The early reset reads as done today, and stays undoable.
   await expect(
-    page.getByRole("button", { name: "Complete Water plants", exact: true }),
+    page.getByRole("button", { name: "Undo Water plants", exact: true }),
   ).toBeEnabled();
   await nav(page, "Rewards");
   await page
@@ -787,12 +793,12 @@ test("setup derives Tank, early resets take no draw, and repeated practice stays
     .getByRole("link", { name: "Record" })
     .click();
   await expect(
-    page.getByText("Early reset · no draw", { exact: true }),
+    page.getByText("Clock restarted · no draw", { exact: true }),
   ).toBeVisible();
   await expect(page.getByText("0 of 0 draws", { exact: true })).toBeVisible();
   await page.reload();
   await expect(
-    page.getByText("Early reset · no draw", { exact: true }),
+    page.getByText("Clock restarted · no draw", { exact: true }),
   ).toBeVisible();
   await nav(page, "Today");
   await page
@@ -801,7 +807,7 @@ test("setup derives Tank, early resets take no draw, and repeated practice stays
     .first()
     .click();
   await editor.getByLabel("Task name").fill("Piano practice");
-  await editor.getByRole("radio", { name: "Yes, each session counts" }).check();
+  await editor.getByRole("radio", { name: "Yes, each one adds up" }).check();
   await expect(editor.getByLabel("Your task rules")).toContainText("Practice");
   await editor.getByRole("button", { name: "Add task", exact: true }).click();
   // Lose both draws to keep the test on the task list.
@@ -859,7 +865,7 @@ test("an empty notebook from before the taxonomy update opens and upgrades atomi
   await expect(
     page.getByRole("heading", { name: "My coffee", exact: true }),
   ).toBeVisible();
-  await expect(page.locator(".menu-card")).toHaveCount(1);
+  await expect(page.locator(".menu-item")).toHaveCount(1);
   await page
     .getByRole("link", { name: "Settings", exact: true })
     .filter({ visible: true })

@@ -103,11 +103,12 @@ export const Rewards = () => {
         </span>
         {!showEnjoyed ? (
           <button
-            className="button reward-button"
+            className={`button reward-button ${held ? "held" : ""}`}
             disabled={!!storageError || held}
             onClick={() => enjoy(e.id)}
           >
-            {held ? "On hold" : "Enjoy"} <Icon name="check" size={16} />
+            {held ? "On hold" : "Enjoy"}
+            {!held && <Icon name="check" size={16} />}
           </button>
         ) : (
           <span className="enjoyed-label">
@@ -191,37 +192,53 @@ export const Rewards = () => {
               </button>
             ))}
           </div>
-          <div className="menu-grid">
-            {data.rewards
-              .filter((r) => size === "all" || size === r.size)
-              .map((r) => (
-                <article
-                  key={r.id}
-                  className={`menu-card ${!r.active ? "inactive" : ""}`}
-                >
-                  <span className="reward-label">
-                    <i className="reward-dot" />
-                    {r.size}
-                  </span>
-                  <h3>{r.title}</h3>
-                  <div className="menu-card-footer">
-                    <button className="text-link" onClick={() => openReward(r)}>
-                      Edit
-                    </button>
-                    <button
-                      className="pause-toggle"
-                      aria-label={`${r.active ? "Pause" : "Resume"} ${r.title}`}
-                      disabled={!!storageError}
-                      onClick={() =>
-                        saveReward({ ...r, active: !r.active }, r.id)
-                      }
-                    >
-                      <i className={r.active ? "on" : ""} />
-                      {r.active ? "On the menu" : "Paused"}
-                    </button>
-                  </div>
-                </article>
-              ))}
+          <div className="menu-list">
+            {(["small", "medium", "big"] as const)
+              .filter((s) => size === "all" || size === s)
+              .map((s) => {
+                const items = data.rewards.filter((r) => r.size === s);
+                if (!items.length) return null;
+                const paused = items.filter((r) => !r.active).length;
+                return (
+                  <section key={s} className="menu-section">
+                    <div className="group-label">
+                      <h2>{s} rewards</h2>
+                      <span>
+                        {items.length - paused} on the menu
+                        {paused ? ` · ${paused} paused` : ""}
+                      </span>
+                    </div>
+                    <ul>
+                      {items.map((r) => (
+                        <li
+                          key={r.id}
+                          className={`menu-item ${!r.active ? "inactive" : ""}`}
+                        >
+                          <h3>{r.title}</h3>
+                          <button
+                            className="pause-toggle"
+                            aria-label={`${r.active ? "Pause" : "Resume"} ${r.title}`}
+                            disabled={!!storageError}
+                            onClick={() =>
+                              saveReward({ ...r, active: !r.active }, r.id)
+                            }
+                          >
+                            <i className={r.active ? "on" : ""} />
+                            {r.active ? "On" : "Paused"}
+                          </button>
+                          <button
+                            className="text-link"
+                            aria-label={`Edit ${r.title}`}
+                            onClick={() => openReward(r)}
+                          >
+                            Edit
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                );
+              })}
           </div>
           <section className="forecast panel">
             <div>
@@ -341,7 +358,7 @@ export const Rewards = () => {
                     {e.reward
                       ? e.reward.title
                       : e.roll === null
-                        ? "Early reset · no draw"
+                        ? "Clock restarted · no draw"
                         : "No reward"}
                   </p>
                 </div>

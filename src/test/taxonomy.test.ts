@@ -116,6 +116,12 @@ describe("the eight task behaviors", () => {
       )!;
       expect(e).toMatchObject({ roll: null, reward: null });
       data.events.push(e);
+      // Done for the rest of that day, then completable again without a draw.
+      expect(period(data, at("02T12:00:00")).bucket).toBe("done");
+      expect(period(data, at("03T12:00:00"))).toMatchObject({
+        bucket: "anytime",
+        drawEligible: false,
+      });
       const half = type === "Tank" ? at("05T00:00:00") : at("05T12:00:00");
       expect(period(data, new Date(half.getTime() - 1)).drawEligible).toBe(
         false,

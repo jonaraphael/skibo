@@ -263,7 +263,9 @@ export const App = () => {
         </aside>
         <div className="app-content">
           <header className="workspace-topbar">
-            <span className="desktop-breadcrumb">{currentLabel}</span>
+            {!onboarding && (
+              <span className="desktop-breadcrumb">{currentLabel}</span>
+            )}
             <Link className="mobile-wordmark" to="/" aria-label="Skibo home">
               Skibo
             </Link>
@@ -348,14 +350,16 @@ export const App = () => {
                 </NavLink>
               ))}
             </nav>
-            <button
-              className="mobile-fab"
-              aria-label="Add a task"
-              disabled={!canEdit(state)}
-              onClick={() => setTask(null)}
-            >
-              <Icon name="plus" size={24} />
-            </button>
+            {(location.pathname === "/" || location.pathname === "/plan") && (
+              <button
+                className="mobile-fab"
+                aria-label="Add a task"
+                disabled={!canEdit(state)}
+                onClick={() => setTask(null)}
+              >
+                <Icon name="plus" size={24} />
+              </button>
+            )}
           </>
         )}
         {task !== undefined && <TaskEditor task={task} close={closeTask} />}

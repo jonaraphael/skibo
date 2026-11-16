@@ -170,7 +170,6 @@ small,
 .setting-note,
 .quiet-note,
 .welcome-menu-note,
-.welcome-next p,
 .practice-card p,
 .empty-state p,
 .tray-panel > p,
@@ -763,7 +762,6 @@ textarea {
 .popover button:hover {
   background: var(--soft-green);
 }
-.menu-card.inactive h3,
 .task-row.inactive .task-title {
   color: var(--muted);
 }
@@ -1057,36 +1055,6 @@ textarea {
 }
 .menu-filters {
   margin: 24px 0 16px;
-}
-.menu-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 17px;
-}
-.menu-card {
-  display: flex;
-  flex-direction: column;
-  gap: 21px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 20px;
-  background: var(--surface);
-}
-.menu-card h3 {
-  font: 400 23px/1.25 var(--serif);
-  flex: 1;
-  overflow-wrap: anywhere;
-}
-.menu-card-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 9px;
-  border-top: 1px solid var(--line);
-  padding-top: 7px;
-}
-.menu-card-footer .text-link {
-  font-size: 11px;
 }
 .pause-toggle {
   display: flex;
@@ -1741,14 +1709,10 @@ legend {
   gap: 16px;
   margin: 25px 0 5px;
 }
-.welcome-menu-note,
-.welcome-next p {
+.welcome-menu-note {
   font-size: 12px;
   line-height: 1.8;
   color: var(--muted);
-}
-.welcome-menu .welcome-content {
-  max-width: 500px;
 }
 .welcome-tiers {
   display: grid;
@@ -1798,19 +1762,6 @@ legend {
   line-height: 1.6;
   padding-left: 17px;
   margin: 10px 0 0;
-}
-.welcome-next {
-  margin-top: 27px;
-}
-.welcome-next h2 {
-  font-size: 24px;
-}
-.welcome-next p {
-  margin-top: 9px;
-}
-.welcome-back {
-  display: block;
-  margin-top: 18px;
 }
 .welcome-facts > span {
   display: flex;
@@ -2040,9 +1991,6 @@ legend {
     align-items: flex-start;
     flex-direction: column;
     gap: 9px;
-  }
-  .menu-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .settings-grid {
     gap: 18px;
@@ -2432,28 +2380,8 @@ legend {
   .odds-banner > .button {
     width: 100%;
   }
-  .menu-grid {
-    gap: 13px;
-  }
-  .menu-card {
-    padding: 15px;
-    gap: 19px;
-  }
-  .menu-card h3 {
-    font-size: 22px;
-    line-height: 1.3;
-  }
-  .menu-card-footer {
-    gap: 4px;
-    flex-wrap: wrap;
-  }
   .pause-toggle {
-    font-size: 8px;
     gap: 5px;
-  }
-  .menu-card .reward-label {
-    font-size: 8px;
-    letter-spacing: 1px;
   }
   .forecast {
     padding: 20px;
@@ -2697,9 +2625,6 @@ legend {
   .reward-tabs a {
     font-size: 10px;
   }
-  .menu-grid {
-    grid-template-columns: 1fr;
-  }
   .sprig {
     width: 165px;
   }
@@ -2892,14 +2817,15 @@ html[data-motion="reduce"] *::after {
   }
 }
 
-/* Reward titles get a full row on phones instead of two cramped columns. */
-@media (max-width: 520px) {
-  .menu-grid {
-    grid-template-columns: 1fr;
-  }
+/* Questions explain behavior before naming a rhythm. The question is the
+   content, so it outranks its answers. */
+.editor-form .rhythm-question > legend {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ink);
+  padding-bottom: 10px;
 }
-
-/* Questions explain behavior before naming a rhythm. */
 .rhythm-choices {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2908,84 +2834,152 @@ html[data-motion="reduce"] *::after {
 .rhythm-choice {
   display: flex;
   align-items: flex-start;
-  gap: 9px;
-  padding: 12px;
+  gap: 10px;
+  padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 10px;
   cursor: pointer;
   line-height: 1.4;
 }
+.rhythm-choice:hover {
+  border-color: var(--faint);
+}
 .rhythm-choice.selected {
-  background: var(--surface);
+  background: var(--soft-green);
   border-color: var(--green);
 }
+.rhythm-choice:focus-within {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
 .rhythm-choice input {
-  width: auto;
-  flex: 0 0 auto;
+  margin-top: 2px;
+}
+.rhythm-choice-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 550;
+}
+.rhythm-choice-example {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
   margin-top: 3px;
 }
 .field-hint {
   font-size: 12px;
   line-height: 1.5;
   color: var(--muted);
-  margin: 6px 0 0;
+  margin: 0;
 }
 .rhythm-timing {
-  padding: 16px 0;
+  margin-top: 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.interval-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
 }
 .rhythm-summary {
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 16px;
-  line-height: 1.6;
+  padding: 16px 18px;
+  background: var(--surface);
 }
-.rhythm-summary p {
-  margin: 0 0 8px;
+.rhythm-type {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0 0 12px;
 }
-.rhythm-summary p:last-child {
-  margin-bottom: 0;
+.rhythm-type strong {
+  font: 400 20px var(--serif);
+  color: var(--ink);
+  margin-right: 6px;
+}
+.rhythm-summary dl {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+.rhythm-summary dl > div {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.rhythm-summary dt {
+  font: 500 10px/1.9 var(--mono);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.rhythm-summary dd {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
 }
 .hold-notice {
-  padding: 18px;
+  padding: 18px 20px 6px;
   border: 1px solid var(--line);
-  border-left: 3px solid #bb8740;
+  border-left: 3px solid var(--amber);
   border-radius: 12px;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
+  background: var(--surface);
 }
 .hold-notice h2 {
   margin: 0 0 6px;
-  font-size: 18px;
+  font-size: 20px;
 }
-.hold-notice p {
-  line-height: 1.5;
+.hold-notice > p {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+  max-width: 64ch;
 }
 .hold-notice ul {
   list-style: none;
-  margin: 12px 0;
+  margin: 14px 0 0;
   padding: 0;
 }
 .hold-notice li {
-  display: grid;
-  gap: 6px;
-  padding: 12px 0;
-  border-top: 1px solid var(--line);
-}
-.hold-notice li > span {
-  font-size: 13px;
-}
-.hold-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  margin-top: 4px;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.hold-notice li > div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.hold-notice li strong {
+  font-size: 14px;
+}
+.hold-notice li span {
+  font-size: 12px;
+  color: var(--amber-ink);
+}
+.hold-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.hold-actions .button {
+  min-height: 38px;
+  padding: 8px 16px;
 }
 .task-hold {
+  grid-column: 1;
   display: block;
   color: var(--amber-ink);
-  font-size: 12px;
-  line-height: 1.5;
-  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.4;
 }
 .miss-record {
   margin-top: 24px;
@@ -2994,4 +2988,143 @@ html[data-motion="reduce"] *::after {
   .rhythm-choices {
     grid-template-columns: 1fr;
   }
+}
+
+/* Radios are controls, not text fields: keep the text-input box off them. */
+input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  flex: none;
+  accent-color: var(--green);
+}
+
+/* The underline title field marks focus on its own line, not with a box
+   that hugs the text. */
+.title-field input:focus-visible {
+  outline: none;
+  border-bottom: 2px solid var(--green);
+  padding-bottom: 11px;
+}
+
+/* Setup takes the whole window: no navigation exists yet. */
+.app-shell.onboarding {
+  grid-template-columns: minmax(0, 1fr);
+}
+.app-shell.onboarding .sidebar {
+  display: none;
+}
+.app-shell.onboarding .app-content {
+  grid-column: 1;
+}
+.app-shell.onboarding .mobile-wordmark {
+  display: block;
+  font-size: 21px;
+  font-weight: 650;
+  letter-spacing: -0.8px;
+}
+.welcome.welcome-step {
+  display: block;
+  max-width: 600px;
+  min-height: 0;
+  margin: 0 auto;
+}
+.welcome-step .welcome-content {
+  max-width: none;
+  padding-top: 8px;
+}
+.welcome-step .welcome-content h1 {
+  font-size: clamp(30px, 7cqi, 44px);
+  margin-top: 14px;
+}
+.welcome-step .welcome-content > .lede {
+  margin: 14px 0 6px;
+}
+.welcome-step-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.welcome-step-head .welcome-progress {
+  margin: 0;
+}
+.welcome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 22px;
+  margin-top: 8px;
+}
+.welcome-actions .button {
+  min-width: 175px;
+}
+.welcome-step .welcome-menu-note {
+  margin-top: 24px;
+}
+.welcome .schedule-echo {
+  background: none;
+  padding: 0;
+  font-size: 12px;
+}
+
+/* A held reward reads as unavailable, not as a lit call to action. */
+.reward-button.held:disabled {
+  background: transparent;
+  color: var(--amber-ink);
+  border: 1px dashed var(--amber-ink);
+  opacity: 0.8;
+}
+
+/* The menu is a list to scan, grouped by size. */
+.menu-list {
+  display: grid;
+  gap: 26px;
+}
+.menu-section .group-label h2 {
+  font: 500 10px var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 1.3px;
+}
+.menu-section ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  columns: 2 360px;
+  column-gap: 32px;
+}
+.menu-item {
+  break-inside: avoid;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 46px;
+  border-top: 1px solid var(--line);
+}
+.menu-item h3 {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 450;
+  line-height: 1.35;
+  padding: 8px 0;
+  overflow-wrap: anywhere;
+}
+.menu-item.inactive h3 {
+  color: var(--muted);
+}
+.menu-item .text-link {
+  font-size: 11px;
+  min-height: 40px;
+}
+.menu-item .pause-toggle {
+  min-width: 58px;
+}
+.welcome-content h1:focus {
+  outline: none;
+}
+.button.secondary.held:disabled {
+  border-style: dashed;
+  color: var(--amber-ink);
 }

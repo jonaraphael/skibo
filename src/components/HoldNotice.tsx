@@ -10,37 +10,43 @@ export const HoldNotice = () => {
   if (!holds.length) return null;
   return (
     <section className="hold-notice" aria-label="Reward tray holds">
-      <h2>Tray on hold</h2>
+      <h2>Reward tray on hold</h2>
       <p>
-        Your rewards are still yours. Resolve each task below to enjoy them.
+        Earned rewards stay in the tray but can't be used until{" "}
+        {holds.length === 1
+          ? "this task is"
+          : `these ${holds.length} tasks are`}{" "}
+        completed or declared missed. A declared miss forfeits that round's draw
+        and stays in your record.
       </p>
       <ul>
         {holds.map((p) => (
           <li key={p.task.id}>
-            <strong>{p.task.title}</strong>
-            <span>{p.hold}</span>
+            <div>
+              <strong>{p.task.title}</strong>
+              <span>{p.hold}</span>
+            </div>
             <div className="hold-actions">
               <button
                 className="button secondary"
                 disabled={disabled}
+                aria-label={`Complete ${p.task.title}`}
                 onClick={() => complete(p)}
               >
-                Complete {p.task.title}
+                Complete
               </button>
               <button
                 className="text-link"
                 disabled={disabled}
+                aria-label={`Declare a miss for ${p.task.title}`}
                 onClick={() => skip(p)}
               >
-                Declare a miss for {p.task.title}
+                Declare a miss
               </button>
             </div>
           </li>
         ))}
       </ul>
-      <p className="field-hint">
-        A declared miss forfeits this round’s draw and stays in your record.
-      </p>
     </section>
   );
 };
