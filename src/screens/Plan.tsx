@@ -10,10 +10,10 @@ import {
   dayKey,
   localDate,
   matchesDay,
-  periodFor,
   prettyDate,
   weekStart,
 } from "../lib/schedule/calendar";
+import { periodFor } from "../lib/tasks/taxonomy";
 
 export const Plan = () => {
   const { data } = useApp();
@@ -45,6 +45,7 @@ export const Plan = () => {
               dayKey(new Date(e.at), data.preferences.dayStart) === today,
           )
         );
+      if (p.bucket === "anytime" && date === today) return true;
       if (!p.date) return date === today;
       if (p.date <= today && date === today) return true;
       if (p.date === date) return true;

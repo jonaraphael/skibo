@@ -8,7 +8,7 @@ const seed = async (page: Page, title: string) => {
   const data: Notebook = {
     ...emptyNotebook(),
     onboarded: true,
-    tasks: [{ ...task({ kind: "once", start: null }), title }],
+    tasks: [{ ...task({ kind: "once", start: "2026-01-31" }), title }],
   };
   await page.addInitScript((root) => {
     const request = indexedDB.open("skibo", 1);

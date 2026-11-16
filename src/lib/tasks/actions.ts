@@ -4,7 +4,8 @@ import {
   Notebook,
   TaskPeriod,
 } from "../../app/types";
-import { liveEvents, periodFor } from "../schedule/calendar";
+import { liveEvents } from "../schedule/calendar";
+import { periodFor } from "./taxonomy";
 import { drawReward, trayRewards } from "../rewards/engine";
 import { RandomSource } from "../rewards/rng";
 
@@ -31,7 +32,11 @@ export const completePeriod = (
       e.taskId === task.id &&
       e.period === current.key,
   );
-  const result = previous ?? drawReward(task.effort, data, now, rng);
+  const result =
+    previous ??
+    (current.drawEligible
+      ? drawReward(task.effort, data, now, rng)
+      : { roll: null, reward: null });
   return {
     id,
     type: "completed",
@@ -50,7 +55,7 @@ export const undoEvent = (
   id: string,
 ): JournalEvent | null => {
   const event = liveEvents(data.events).find((e) => e.id === target);
-  if (!event || event.type === "undone") return null;
+  if (!event || event.type === "undone" || event.type === "missed") return null;
   if (
     event.type === "completed" &&
     event.reward &&

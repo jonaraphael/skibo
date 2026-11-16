@@ -8,7 +8,8 @@ import {
   trayRewards,
 } from "../lib/rewards/engine";
 import { SeededRng } from "../lib/rewards/rng";
-import { periodFor } from "../lib/schedule/calendar";
+
+import { periodFor } from "../lib/tasks/taxonomy";
 import { completePeriod, undoEvent } from "../lib/tasks/actions";
 import { task } from "./fixtures";
 

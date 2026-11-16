@@ -1,12 +1,14 @@
 import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Effort, RewardSize, Schedule } from "../app/types";
+import { Effort, RewardSize } from "../app/types";
 import { rewardExamples } from "../lib/rewards/rewardPools";
 import { canEdit, randomId, useApp } from "../app/store";
 import { Icon } from "../components/Icon";
 import { Mark, Sprig } from "../components/Marks";
 import { useWorkspace } from "../components/Workspace";
-import { dayKey, localDate } from "../lib/schedule/calendar";
+import { dayKey } from "../lib/schedule/calendar";
+import { RhythmFields } from "../components/RhythmFields";
+import { defaultBehavior, defaultSchedule } from "../lib/tasks/taxonomy";
 import { availableMix } from "../lib/rewards/engine";
 
 const tiers = [
@@ -38,8 +40,12 @@ export const Welcome = () => {
   const firstTask = data.tasks[0];
   const [step, setStep] = useState(firstTask ? 2 : 0);
   const [title, setTitle] = useState(firstTask?.title ?? "");
-  const [repeat, setRepeat] = useState<Schedule["kind"]>(
-    firstTask?.schedule.kind ?? "daily",
+  const today = dayKey(new Date(), data.preferences.dayStart);
+  const [schedule, setSchedule] = useState(
+    firstTask?.schedule ?? defaultSchedule(today),
+  );
+  const [behavior, setBehavior] = useState(
+    firstTask?.behavior ?? defaultBehavior(today),
   );
   const [effort, setEffort] = useState<Effort>(firstTask?.effort ?? "solid");
   const [names, setNames] = useState(["", "", ""]);
@@ -63,24 +69,14 @@ export const Welcome = () => {
       return;
     }
     if (storageError) return;
-    const today = dayKey(new Date(), data.preferences.dayStart);
     const saved = await saveTask(
       {
         title: title.trim(),
         notes: firstTask?.notes ?? "",
         effort,
         status: firstTask?.status ?? "active",
-        schedule: {
-          ...(firstTask?.schedule ?? {
-            start: today,
-            time: "",
-            every: 1,
-            weekdays: [localDate(today).getDay()],
-            monthDay: localDate(today).getDate(),
-            unit: "days",
-          }),
-          kind: repeat,
-        },
+        schedule,
+        behavior: { ...behavior, unitLabel: behavior.unitLabel.trim() },
       },
       firstTask?.id,
     );
@@ -88,7 +84,10 @@ export const Welcome = () => {
       notify(null);
       setError("");
       setStep(2);
-    }
+    } else
+      setError(
+        "Check the dates, interval, and safety margin before continuing.",
+      );
   };
   const submitMenu = async (e: FormEvent) => {
     e.preventDefault();
@@ -186,23 +185,15 @@ export const Welcome = () => {
                   placeholder="e.g. Do ten minutes of mobility"
                 />
               </label>
-              <label className="field">
-                <span>How often?</span>
-                <select
-                  value={repeat}
-                  onChange={(e) =>
-                    setRepeat(e.target.value as Schedule["kind"])
-                  }
-                >
-                  <option value="daily">Every day</option>
-                  <option value="weekly">Every week</option>
-                  <option value="monthly">Every month</option>
-                </select>
-              </label>
-              <p className="schedule-echo">
-                You can fine-tune the days and timing later. Missed days won't
-                pile up.
-              </p>
+              <RhythmFields
+                schedule={schedule}
+                behavior={behavior}
+                today={today}
+                change={(s, b) => {
+                  setSchedule(s);
+                  setBehavior(b);
+                }}
+              />
               {error && (
                 <p className="error-text" role="alert">
                   {error}
@@ -253,8 +244,9 @@ export const Welcome = () => {
                 ))}
               </fieldset>
               <p className="schedule-echo" role="status">
-                Each completion has a <strong>30% chance of a reward.</strong>{" "}
-                When you win with this effort:{" "}
+                Each eligible completion has a{" "}
+                <strong>30% chance of a reward.</strong> When you win with this
+                effort:{" "}
                 {tiers
                   .map(
                     (tier) =>

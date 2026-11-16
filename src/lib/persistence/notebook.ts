@@ -5,6 +5,7 @@ import {
   Reward,
   Schedule,
   Task,
+  TaskBehavior,
 } from "../../app/types";
 import { validDate } from "../schedule/calendar";
 import { defaultRewards } from "../rewards/rewardPools";
@@ -17,7 +18,7 @@ export const defaultPreferences = (): Preferences => ({
   bigRewardCap: 1,
 });
 export const emptyNotebook = (): Notebook => ({
-  version: 2,
+  version: 3,
   revision: 0,
   tasks: [],
   rewards: defaultRewards(),
@@ -47,9 +48,9 @@ const isReward = (v: unknown): v is Reward =>
 const isSchedule = (s: unknown): s is Schedule =>
   object(s) &&
   oneOf(s.kind, ["once", "daily", "weekly", "monthly", "after"]) &&
-  (s.start === null
-    ? s.kind === "once"
-    : validDate(s.start) && s.start <= "9900-12-31") &&
+  validDate(s.start) &&
+  s.start >= "1900-01-01" &&
+  s.start <= "9900-12-31" &&
   time(s.time) &&
   integer(s.every, 1, 365) &&
   Array.isArray(s.weekdays) &&
@@ -61,6 +62,26 @@ const isSchedule = (s: unknown): s is Schedule =>
     (object(s.nthWeekday) &&
       oneOf(s.nthWeekday.nth, [-1, 1, 2, 3, 4]) &&
       integer(s.nthWeekday.weekday, 0, 6)));
+const isBehavior = (b: unknown, s: Schedule): b is TaskBehavior =>
+  object(b) &&
+  oneOf(b.payoff, ["more", "accrues"]) &&
+  oneOf(b.cost, ["ramp", "cliff"]) &&
+  validDate(b.windowStart) &&
+  b.windowStart >= "1900-01-01" &&
+  b.windowStart <= "9900-12-31" &&
+  integer(b.goal, 1, 1000000) &&
+  title(b.unitLabel) &&
+  b.unitLabel.length <= 60 &&
+  typeof b.opening === "number" &&
+  b.opening >= 0 &&
+  b.opening <= 1 &&
+  typeof b.lead === "number" &&
+  Number.isFinite(b.lead) &&
+  b.lead >= 0 &&
+  b.lead <= 365 &&
+  (b.cost !== "cliff" ||
+    (b.lead > 0 && (s.kind !== "after" || b.lead < s.every))) &&
+  (s.kind === "after" || b.cost !== "cliff" || b.windowStart <= s.start!);
 const isTask = (t: unknown): t is Task =>
   object(t) &&
   id(t.id) &&
@@ -69,19 +90,21 @@ const isTask = (t: unknown): t is Task =>
   oneOf(t.effort, ["light", "solid", "heavy"]) &&
   oneOf(t.status, ["active", "paused", "archived"]) &&
   iso(t.createdAt) &&
-  isSchedule(t.schedule);
+  isSchedule(t.schedule) &&
+  isBehavior(t.behavior, t.schedule) &&
+  integer(t.rhythmRevision, 1, Number.MAX_SAFE_INTEGER);
 const isEvent = (e: unknown): e is JournalEvent => {
   if (!object(e) || !id(e.id) || !iso(e.at)) return false;
   if (e.type === "undone" || e.type === "enjoyed") return id(e.target);
   if (!id(e.taskId) || !text(e.period) || !e.period) return false;
   if (e.type === "snoozed") return validDate(e.until);
   if (!title(e.taskTitle)) return false;
-  if (e.type === "skipped") return true;
+  if (e.type === "skipped" || e.type === "missed") return true;
   return (
     e.type === "completed" &&
-    typeof e.roll === "number" &&
-    e.roll >= 0 &&
-    e.roll < 1 &&
+    (e.roll === null
+      ? e.reward === null
+      : typeof e.roll === "number" && e.roll >= 0 && e.roll < 1) &&
     (e.reward === null || isReward(e.reward))
   );
 };
@@ -90,7 +113,7 @@ const unique = (entries: { id: string }[]) =>
 export const parseNotebook = (value: unknown): Notebook => {
   if (
     !object(value) ||
-    value.version !== 2 ||
+    value.version !== 3 ||
     !integer(value.revision, 0, Number.MAX_SAFE_INTEGER) ||
     !Array.isArray(value.tasks) ||
     !value.tasks.every(isTask) ||

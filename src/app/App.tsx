@@ -59,6 +59,9 @@ export const App = () => {
     window.addEventListener("beforeunload", listener);
     return () => window.removeEventListener("beforeunload", listener);
   }, []);
+  useEffect(() => {
+    void state.settle();
+  }, [now, state.data, state.syncConnected, state.pending, state.settle]);
   const tray = trayRewards(state.data.events).length;
   const onboarding = !state.data.onboarded && location.pathname !== "/settings";
   const closeTask = () => setTask(undefined);
@@ -203,9 +206,7 @@ export const App = () => {
         </aside>
         <div className="app-content">
           <header className="workspace-topbar">
-            <span className="desktop-breadcrumb">
-              {currentLabel}
-            </span>
+            <span className="desktop-breadcrumb">{currentLabel}</span>
             <Link className="mobile-wordmark" to="/" aria-label="Skibo home">
               Skibo
             </Link>

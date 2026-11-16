@@ -16,7 +16,8 @@ import {
   saveCloud,
 } from "../lib/sync/firebase";
 import { emptyNotebook } from "../lib/persistence/notebook";
-import { periodFor } from "../lib/schedule/calendar";
+
+import { periodFor } from "../lib/tasks/taxonomy";
 import { TaskEditor } from "../screens/TaskEditor";
 import { WorkspaceContext } from "../components/Workspace";
 import { task } from "./fixtures";
@@ -30,7 +31,7 @@ const hooks = vi.hoisted(() => ({
 vi.mock("../lib/persistence/storage", () => ({
   loadNotebook: vi.fn(async () => ({
     ...emptyNotebook(),
-    tasks: [task({ kind: "once", start: null })],
+    tasks: [task({ kind: "once", start: "2026-01-31" })],
     onboarded: true,
   })),
   saveNotebook: vi.fn(async () => {}),

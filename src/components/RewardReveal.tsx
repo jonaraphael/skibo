@@ -3,10 +3,14 @@ import { canEdit, useApp } from "../app/store";
 import { Dialog } from "./Dialog";
 import { Icon } from "./Icon";
 import { Dotted } from "./Shared";
+import { activeHolds } from "../lib/tasks/taxonomy";
+import { useWorkspace } from "./Workspace";
 import { TaskHistory } from "./TaskHistory";
 export const RewardReveal = () => {
   const { reveal, dismissReveal, enjoy, data } = useApp();
   const disabled = useApp((s) => !canEdit(s));
+  const { now } = useWorkspace();
+  const held = activeHolds(data, now).length > 0;
   const [settled, setSettled] = useState(false);
   useEffect(() => {
     if (!reveal) return;
@@ -82,13 +86,19 @@ export const RewardReveal = () => {
             <TaskHistory task={t} />
           </div>
         ))}
+      {held && (
+        <p className="task-hold">
+          Tray on hold. Complete the listed tasks or declare a miss to enjoy
+          rewards.
+        </p>
+      )}
       <div className="two-col">
         <button
           className="button secondary"
-          disabled={disabled}
+          disabled={disabled || held}
           onClick={() => enjoy(reveal.id)}
         >
-          Enjoy now <Icon name="check" size={17} />
+          {held ? "Tray on hold" : "Enjoy now"} <Icon name="check" size={17} />
         </button>
         <button className="button primary" onClick={dismissReveal}>
           Keep in tray

@@ -1,11 +1,4 @@
-import {
-  DateKey,
-  JournalEvent,
-  Preferences,
-  Schedule,
-  Task,
-  TaskPeriod,
-} from "../../app/types";
+import { DateKey, JournalEvent, Schedule } from "../../app/types";
 
 export const dateKey = (date: Date): DateKey =>
   `${String(date.getFullYear()).padStart(4, "0")}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -46,7 +39,7 @@ export const liveEvents = (events: JournalEvent[]): JournalEvent[] => {
   return events.filter((e) => e.type !== "undone" && !undone.has(e.id));
 };
 export const matchesDay = (schedule: Schedule, key: DateKey): boolean => {
-  const start = schedule.start ?? key;
+  const start = schedule.start;
   if (key < start) return false;
   const date = localDate(key);
   const anchor = localDate(start);
@@ -83,77 +76,13 @@ export const matchesDay = (schedule: Schedule, key: DateKey): boolean => {
   return key === start;
 };
 export const nextCalendarDay = (schedule: Schedule, from: DateKey): DateKey => {
-  let key = from < (schedule.start ?? from) ? schedule.start! : from;
+  let key = from < schedule.start ? schedule.start : from;
   for (let i = 0; i < 134_000; i++, key = addDays(key, 1))
     if (matchesDay(schedule, key)) return key;
   throw new Error("This schedule has no next date.");
 };
-export const periodFor = (
-  task: Task,
-  events: JournalEvent[],
-  now: Date,
-  prefs: Preferences,
-): TaskPeriod => {
-  const today = dayKey(now, prefs.dayStart);
-  const history = liveEvents(events).filter(
-    (e) => "taskId" in e && e.taskId === task.id,
-  );
-  const resolved = history
-    .filter((e) => e.type === "completed" || e.type === "skipped")
-    .sort((a, b) => a.at.localeCompare(b.at));
-  const s = task.schedule;
-  const last = (
-    s.kind === "once"
-      ? resolved.filter((e) => e.period === `${task.id}:once`)
-      : resolved
-  ).at(-1);
-  let date = s.start;
-  let time = s.time;
-  let afterDue: Date | null = null;
-  if (s.kind === "once" && last)
-    return { task, key: last.period, date, time, bucket: "done" };
-  if (s.kind === "after" && last) {
-    const completed = new Date(last.at);
-    if (s.unit === "hours") {
-      const next = new Date(completed.getTime() + s.every * 3_600_000);
-      date = dayKey(next, prefs.dayStart);
-      afterDue = next;
-      time = `${String(next.getHours()).padStart(2, "0")}:${String(next.getMinutes()).padStart(2, "0")}`;
-    } else
-      date = addDays(
-        dayKey(completed, prefs.dayStart),
-        s.every * (s.unit === "weeks" ? 7 : 1),
-      );
-  } else if (s.kind !== "once" && s.kind !== "after") {
-    const from = last
-      ? addDays(dayKey(new Date(last.at), prefs.dayStart), 1)
-      : (s.start ?? today);
-    date = nextCalendarDay(s, from);
-  }
-  const key = `${task.id}:${s.kind === "once" ? "once" : afterDue ? afterDue.toISOString() : `${date}:${time}`}`;
-  const snooze = history
-    .filter((e) => e.type === "snoozed" && e.period === key)
-    .at(-1);
-  if (snooze?.type === "snoozed" && (!date || snooze.until > date))
-    date = snooze.until;
-  const doneToday =
-    last &&
-    last.type === "completed" &&
-    dayKey(new Date(last.at), prefs.dayStart) === today;
-  let bucket: TaskPeriod["bucket"] = !date
-    ? "anytime"
-    : date < today
-      ? "late"
-      : date === today
-        ? "today"
-        : "later";
-  if (afterDue && afterDue > now) bucket = "later";
-  if (doneToday && bucket === "later") bucket = "done";
-  return { task, key, date, time, bucket };
-};
 export const scheduleLabel = (s: Schedule): string => {
-  if (s.kind === "once")
-    return s.start ? prettyDate(s.start) : "Anytime";
+  if (s.kind === "once") return prettyDate(s.start);
   if (s.kind === "daily")
     return s.every === 1 ? "Every day" : `Every ${s.every} days`;
   if (s.kind === "weekly")

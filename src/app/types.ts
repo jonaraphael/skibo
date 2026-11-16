@@ -4,7 +4,7 @@ export type DateKey = string;
 
 export interface Schedule {
   kind: "once" | "daily" | "weekly" | "monthly" | "after";
-  start: DateKey | null;
+  start: DateKey;
   time: string;
   every: number;
   weekdays: number[];
@@ -12,12 +12,24 @@ export interface Schedule {
   nthWeekday?: { nth: number; weekday: number };
   unit: "hours" | "days" | "weeks";
 }
+export interface TaskBehavior {
+  payoff: "more" | "accrues";
+  cost: "ramp" | "cliff";
+  windowStart: DateKey;
+  goal: number;
+  unitLabel: string;
+  // Days for calendar tasks; the schedule's unit for completion clocks.
+  lead: number;
+  opening: number;
+}
 export interface Task {
   id: string;
   title: string;
   notes: string;
   effort: Effort;
   schedule: Schedule;
+  behavior: TaskBehavior;
+  rhythmRevision: number;
   status: "active" | "paused" | "archived";
   createdAt: string;
 }
@@ -34,7 +46,7 @@ export interface Completion {
   taskTitle: string;
   period: string;
   at: string;
-  roll: number;
+  roll: number | null;
   reward: Reward | null;
 }
 export type JournalEvent =
@@ -53,7 +65,7 @@ export type JournalEvent =
     }
   | {
       id: string;
-      type: "skipped";
+      type: "skipped" | "missed";
       taskId: string;
       taskTitle: string;
       period: string;
@@ -75,7 +87,7 @@ export interface Preferences {
   bigRewardCap: number | null;
 }
 export interface Notebook {
-  version: 2;
+  version: 3;
   revision: number;
   tasks: Task[];
   rewards: Reward[];
@@ -89,4 +101,9 @@ export interface TaskPeriod {
   date: DateKey | null;
   time: string;
   bucket: "late" | "today" | "anytime" | "later" | "done";
+  round: string;
+  drawEligible: boolean;
+  hold: string | null;
+  detail: string;
+  progress?: { done: number; goal: number };
 }
