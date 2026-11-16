@@ -204,7 +204,6 @@ export const Settings = () => {
           )}
           <p className="setting-note">
             Includes tasks, your menu, every recorded action, and preferences.
-            Backups from earlier versions are supported.
           </p>
         </section>
         <section className="settings-panel about-panel">

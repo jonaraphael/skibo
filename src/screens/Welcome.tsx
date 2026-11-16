@@ -1,73 +1,132 @@
 import { FormEvent, useState } from "react";
-import { Link } from "react-router-dom";
-import { Reward } from "../app/types";
-import { starterRewards } from "../lib/rewards/rewardPools";
+import { Link, useNavigate } from "react-router-dom";
+import { Effort, RewardSize, Schedule } from "../app/types";
+import { rewardExamples } from "../lib/rewards/rewardPools";
 import { randomId, useApp } from "../app/store";
 import { Icon } from "../components/Icon";
+import { useWorkspace } from "../components/Workspace";
 import { dayKey, localDate } from "../lib/schedule/calendar";
+import { availableMix } from "../lib/rewards/engine";
+
+const tiers = [
+  {
+    effort: "light",
+    size: "small",
+    label: "Small",
+    hint: "Light effort · a little nudge",
+  },
+  {
+    effort: "solid",
+    size: "medium",
+    label: "Medium",
+    hint: "Solid effort · a real push",
+  },
+  {
+    effort: "heavy",
+    size: "big",
+    label: "Big",
+    hint: "Heavy effort · hard to get started",
+  },
+] as const;
+
 export const Welcome = () => {
-  const { data, saveTask, change, storageError } = useApp();
-  const [step, setStep] = useState(data.tasks.length ? 2 : 0);
-  const [title, setTitle] = useState("");
-  const [setupRewards] = useState<Reward[]>(() =>
-    starterRewards().map(
-      (starter) =>
-        data.rewards.find((r) => r.size === starter.size) ?? {
-          ...starter,
-          id: randomId(),
-        },
-    ),
+  const { data, saveTask, change, notify, storageError } = useApp();
+  const { openTask } = useWorkspace();
+  const navigate = useNavigate();
+  const firstTask = data.tasks[0];
+  const [step, setStep] = useState(firstTask ? 2 : 0);
+  const [title, setTitle] = useState(firstTask?.title ?? "");
+  const [repeat, setRepeat] = useState<Schedule["kind"]>(
+    firstTask?.schedule.kind ?? "daily",
   );
-  const [names, setNames] = useState(setupRewards.map((r) => r.title));
+  const [effort, setEffort] = useState<Effort>(firstTask?.effort ?? "solid");
+  const [names, setNames] = useState(["", "", ""]);
   const [error, setError] = useState("");
   const [practice, setPractice] = useState(false);
+  const mix = availableMix(effort, data.rewards);
+  const practiceSize = tiers.find((tier) => tier.effort === effort)!.size;
+  const practiceReward =
+    data.rewards.find(
+      (r) =>
+        r.active &&
+        r.size === practiceSize &&
+        r.title ===
+          names[tiers.findIndex((tier) => tier.effort === effort)].trim(),
+    ) ?? rewardExamples(practiceSize, data.rewards)[0];
+
   const submitTask = (e: FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || storageError) return;
+    if (!title.trim()) {
+      setError("Write down one habit you'd like to build.");
+      return;
+    }
+    if (storageError) return;
     const today = dayKey(new Date(), data.preferences.dayStart);
-    const saved = saveTask({
-      title: title.trim(),
-      notes: "",
-      effort: "light",
-      status: "active",
-      schedule: {
-        kind: "daily",
-        start: today,
-        time: "",
-        every: 1,
-        weekdays: [localDate(today).getDay()],
-        monthDay: localDate(today).getDate(),
-        unit: "days",
+    const saved = saveTask(
+      {
+        title: title.trim(),
+        notes: firstTask?.notes ?? "",
+        effort,
+        status: firstTask?.status ?? "active",
+        schedule: {
+          ...(firstTask?.schedule ?? {
+            start: today,
+            time: "",
+            every: 1,
+            weekdays: [localDate(today).getDay()],
+            monthDay: localDate(today).getDate(),
+            unit: "days",
+          }),
+          kind: repeat,
+        },
       },
-    });
-    if (saved) setStep(2);
+      firstTask?.id,
+    );
+    if (saved) {
+      notify(null);
+      setError("");
+      setStep(2);
+    }
   };
   const submitMenu = (e: FormEvent) => {
     e.preventDefault();
-    if (storageError) return;
-    if (names.some((name) => !name.trim())) {
-      setError("Give each reward a name that feels good to you.");
+    if (storageError || !firstTask) return;
+    if (names.some((name) => name.length > 0 && !name.trim())) {
+      setError("Give each reward you add a name, or leave it empty.");
       return;
     }
-    const rewards = setupRewards.map((r, i) => ({
-      ...r,
-      title: names[i].trim(),
-    }));
+    const additions = tiers.flatMap((tier, i) => {
+      const name = names[i].trim();
+      return name &&
+        !data.rewards.some((r) => r.title === name && r.size === tier.size)
+        ? [{ id: randomId(), title: name, size: tier.size, active: true }]
+        : [];
+    });
     const saved = change((d) => ({
       ...d,
-      rewards: [
-        ...d.rewards.map((r) => rewards.find((next) => next.id === r.id) ?? r),
-        ...rewards.filter(
-          (r) => !d.rewards.some((current) => current.id === r.id),
-        ),
-      ],
+      tasks: d.tasks.map((task) =>
+        task.id === firstTask.id ? { ...task, effort } : task,
+      ),
+      rewards: [...d.rewards, ...additions],
     }));
-    if (!saved) return;
-    setError("");
-    setStep(3);
+    if (saved) {
+      setError("");
+      setPractice(false);
+      setStep(3);
+    }
   };
+  const addHabits = () => {
+    if (!change((d) => ({ ...d, onboarded: true }))) return;
+    navigate("/plan");
+    openTask();
+  };
+  const exampleList = (size: RewardSize) =>
+    rewardExamples(size, data.rewards).map((reward) => (
+      <li key={reward.id}>{reward.title}</li>
+    ));
+
   return (
-    <section className="welcome">
+    <section className={`welcome ${step === 2 ? "welcome-menu" : ""}`}>
       <div className="welcome-art" aria-hidden="true">
         <div className="welcome-orbit orbit-one" />
         <div className="welcome-orbit orbit-two" />
@@ -89,18 +148,19 @@ export const Welcome = () => {
               Something good.
             </h1>
             <p className="lede">
-              A calmer place for the things you'd like to do. Finish a task,
-              take a chance, and earn a reward you've chosen for yourself.
+              For the habits you want to build, but keep putting off. Choose
+              something to practice, give it a reason to feel good, and let a
+              little reward help you get started.
             </p>
             <div className="welcome-facts">
               <span>
                 <Icon name="check" size={17} /> Your pace
               </span>
               <span>
-                <Icon name="rewards" size={17} /> Your rewards
+                <Icon name="rewards" size={17} /> A menu ready for you
               </span>
               <span>
-                <Icon name="leaf" size={17} /> Your space
+                <Icon name="leaf" size={17} /> Room to grow
               </span>
             </div>
             <button
@@ -118,28 +178,51 @@ export const Welcome = () => {
         {step === 1 && (
           <>
             <h1>
-              Start with
+              What do you
               <br />
-              one small thing.
+              want to make a habit?
             </h1>
             <p className="lede">
-              Something you'd like to make time for each day. You can change its
-              schedule and effort later.
+              Something you want to do regularly, but find hard to get yourself
+              to do. Start with one; there will be room for the rest.
             </p>
             <form className="editor-form" onSubmit={submitTask}>
               <label className="field title-field">
-                <span>My first intention</span>
+                <span>A habit I want to build</span>
                 <input
                   autoFocus
                   maxLength={300}
                   required
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Step outside for ten minutes"
+                  placeholder="e.g. Do ten minutes of mobility"
                 />
               </label>
+              <label className="field">
+                <span>How often?</span>
+                <select
+                  value={repeat}
+                  onChange={(e) =>
+                    setRepeat(e.target.value as Schedule["kind"])
+                  }
+                >
+                  <option value="daily">Every day</option>
+                  <option value="weekly">Every week</option>
+                  <option value="monthly">Every month</option>
+                </select>
+              </label>
+              <p className="schedule-echo">
+                You can fine-tune the days and timing later. Missed days won't
+                pile up.
+              </p>
+              {error && (
+                <p className="error-text" role="alert">
+                  {error}
+                </p>
+              )}
               <button className="button primary" disabled={!!storageError}>
-                Make a little space <Icon name="arrow" size={18} />
+                Give it something to look forward to{" "}
+                <Icon name="arrow" size={18} />
               </button>
             </form>
           </>
@@ -147,39 +230,99 @@ export const Welcome = () => {
         {step === 2 && (
           <>
             <h1>
-              What feels
+              Make the effort
               <br />
-              good to you?
+              feel worth it.
             </h1>
             <p className="lede">
-              Choose a small, medium, and big reward. These are just a start;
-              your menu is always yours to change.
+              For <strong>“{firstTask?.title}”</strong>, what level of reward
+              would help you get started? Judge the effort it takes you, even if
+              the habit sounds small.
+            </p>
+            <p className="welcome-menu-note">
+              Your menu already has {data.rewards.length} rewards: everyday
+              upgrades, help with the load, and time that's yours again. Keep
+              the ideas you love, pause others, or add your own.
             </p>
             <form onSubmit={submitMenu} className="editor-form">
-              {["Small", "Medium", "Big"].map((size, i) => (
-                <label className="field" key={size}>
-                  <span>{size} reward</span>
-                  <input
-                    maxLength={300}
-                    required
-                    value={names[i] ?? ""}
-                    onChange={(e) =>
-                      setNames((n) =>
-                        n.map((name, index) =>
-                          index === i ? e.target.value : name,
-                        ),
-                      )
-                    }
-                  />
-                </label>
-              ))}
+              <fieldset className="welcome-tiers">
+                <legend>
+                  What should doing this habit give you a chance to earn?
+                </legend>
+                {tiers.map((tier) => (
+                  <label
+                    className={`welcome-tier ${effort === tier.effort ? "selected" : ""}`}
+                    key={tier.size}
+                  >
+                    <input
+                      type="radio"
+                      name="habit-effort"
+                      value={tier.effort}
+                      checked={effort === tier.effort}
+                      onChange={() => setEffort(tier.effort)}
+                      aria-label={`${tier.hint.split(" · ")[0]}, ${tier.label.toLowerCase()} rewards`}
+                    />
+                    <div>
+                      <strong>{tier.label} rewards</strong>
+                      <span className="welcome-tier-hint">{tier.hint}</span>
+                      <ul>{exampleList(tier.size)}</ul>
+                    </div>
+                  </label>
+                ))}
+              </fieldset>
+              <p className="schedule-echo" role="status">
+                Each completion has a <strong>30% chance of a reward.</strong>{" "}
+                When you win with this effort:{" "}
+                {tiers
+                  .map(
+                    (tier) =>
+                      `${Math.round(mix[tier.size] * 100)}% ${tier.size}`,
+                  )
+                  .join(", ")}
+                .
+                {data.preferences.bigRewardCap !== null && (
+                  <>
+                    {" "}
+                    Big rewards are capped at {
+                      data.preferences.bigRewardCap
+                    }{" "}
+                    per week; once capped, wins come from the other sizes.
+                  </>
+                )}
+              </p>
+              <details className="additional" open={!!error}>
+                <summary>
+                  Add rewards of your own <span>optional</span>
+                </summary>
+                <div className="form-stack">
+                  {tiers.map((tier, i) => (
+                    <label className="field" key={tier.size}>
+                      <span>{tier.label} reward</span>
+                      <input
+                        maxLength={300}
+                        value={names[i]}
+                        placeholder={
+                          rewardExamples(tier.size, data.rewards)[0]?.title
+                        }
+                        onChange={(e) =>
+                          setNames((current) =>
+                            current.map((name, index) =>
+                              index === i ? e.target.value : name,
+                            ),
+                          )
+                        }
+                      />
+                    </label>
+                  ))}
+                </div>
+              </details>
               {error && (
                 <p className="error-text" role="alert">
                   {error}
                 </p>
               )}
               <button className="button primary" disabled={!!storageError}>
-                Looks good to me <Icon name="arrow" size={18} />
+                Try it with this habit <Icon name="arrow" size={18} />
               </button>
             </form>
           </>
@@ -191,15 +334,19 @@ export const Welcome = () => {
               <br />A lovely surprise.
             </h1>
             <p className="lede">
-              Each completion has a 30% chance of a reward. Your effort shapes
-              the size. Wins wait in your tray until you're ready.
+              Imagine you've just finished <strong>“{firstTask?.title}”</strong>
+              . Take a practice pull to see what could follow. Real wins wait in
+              your tray until you're ready to enjoy them.
             </p>
             <div className={`practice-card ${practice ? "revealed" : ""}`}>
               <p className="eyebrow">Practice pull · demo only</p>
               {practice ? (
                 <>
                   <i className="reward-orb" />
-                  <h2>{data.rewards.find((r) => r.size === "small")?.title}</h2>
+                  <span className="reward-label">{practiceSize} reward</span>
+                  <h2>
+                    {practiceReward?.title ?? "Something good, just for you"}
+                  </h2>
                   <p>
                     This practice always wins. It doesn't count in your record
                     or tray.
@@ -214,14 +361,34 @@ export const Welcome = () => {
                 </button>
               )}
             </div>
+            <div className="welcome-next">
+              <h2>What else comes to mind?</h2>
+              <p>
+                Write down as many habits you'd like to build as you can think
+                of. Add them one by one; you can adjust their timing and rewards
+                as you go.
+              </p>
+            </div>
             <button
               className="button primary"
               disabled={!!storageError}
-              onClick={() => change((d) => ({ ...d, onboarded: true }))}
+              onClick={addHabits}
             >
-              Start my day <Icon name="arrow" size={18} />
+              Write down my habits <Icon name="arrow" size={18} />
             </button>
           </>
+        )}
+        {step > 1 && (
+          <button
+            className="text-link welcome-back"
+            type="button"
+            onClick={() => {
+              setError("");
+              setStep(step - 1);
+            }}
+          >
+            Back
+          </button>
         )}
         {step > 0 && (
           <div
