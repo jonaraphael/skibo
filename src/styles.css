@@ -278,9 +278,6 @@ textarea {
   letter-spacing: -1px;
   gap: 8px;
 }
-.wordmark-dot {
-  margin-left: -7px;
-}
 .brand-mark {
   display: grid;
   place-items: center;

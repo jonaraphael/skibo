@@ -1,4 +1,4 @@
-# SkinnerBox
+# Skibo
 
 A calmer place for small intentions, with a chance at something good.
 

@@ -1,7 +1,7 @@
 import { Notebook } from "../../app/types";
 import { emptyNotebook, parseNotebook } from "./notebook";
 
-const DB_NAME = "skinnerbox";
+const DB_NAME = "skibo";
 let connection: Promise<IDBDatabase> | undefined;
 const database = (): Promise<IDBDatabase> =>
   (connection ??= new Promise((resolve, reject) => {
@@ -23,7 +23,7 @@ const database = (): Promise<IDBDatabase> =>
       connection = undefined;
       reject(
         new Error(
-          "Close other SkinnerBox tabs, then reload to open your notebook.",
+          "Close other Skibo tabs, then reload to open your notebook.",
         ),
       );
     };

@@ -104,7 +104,7 @@ export const parseNotebook = (value: unknown): Notebook => {
     typeof value.onboarded !== "boolean"
   )
     throw new Error(
-      "This isn't a valid SkinnerBox backup. Your notebook has not been replaced.",
+      "This isn't a valid Skibo backup. Your notebook has not been replaced.",
     );
   const prefs = value.preferences;
   if (

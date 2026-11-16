@@ -30,7 +30,7 @@ const seed = async (page: Page, notebook?: Notebook) => {
     onboarded: true,
   };
   await page.addInitScript((root) => {
-    const request = indexedDB.open("skinnerbox", 1);
+    const request = indexedDB.open("skibo", 1);
     request.onupgradeneeded = () =>
       request.result.createObjectStore("notebook");
     request.onsuccess = () => {
@@ -63,6 +63,15 @@ test("first intention, reward, undo, saved roll, menu, record, and reload", asyn
     };
   });
   await go(page);
+  await expect(page).toHaveTitle("Skibo — Little by little.");
+  await expect(
+    page.getByRole("link", { name: "Skibo home", exact: true }),
+  ).toBeVisible();
+  const manifest = await page.request.get("manifest.webmanifest");
+  expect(await manifest.json()).toMatchObject({
+    name: "Skibo",
+    short_name: "Skibo",
+  });
   await expect(
     page.getByRole("heading", { name: "Small steps. Something good." }),
   ).toBeVisible();
@@ -292,6 +301,9 @@ test("plan, custom schedules, pause, archive, undo and file backup", async ({
     .getByRole("button", { name: "Download backup", exact: true })
     .click();
   const downloaded = await downloading;
+  expect(downloaded.suggestedFilename()).toMatch(
+    /^skibo-\d{4}-\d{2}-\d{2}\.json$/,
+  );
   const backupPath = testInfo.outputPath("notebook.json");
   await downloaded.saveAs(backupPath);
   await page
@@ -309,9 +321,7 @@ test("plan, custom schedules, pause, archive, undo and file backup", async ({
     mimeType: "application/json",
     buffer: Buffer.from('{"version":2,"tasks":[]}'),
   });
-  await expect(page.getByRole("alert")).toContainText(
-    "valid SkinnerBox backup",
-  );
+  await expect(page.getByRole("alert")).toContainText("valid Skibo backup");
 });
 
 test("keeps the notebook in the Pages scope and survives offline reload", async ({
