@@ -49,8 +49,7 @@ const Choice = ({
   );
 };
 
-// Three behavior questions. With `answered`, a choice shows as selected only
-// after the person picks it, so defaults never answer for them.
+// The form explicitly tracks answers; internal schedule defaults never select a radio.
 export const RhythmQuestions = ({
   schedule: s,
   behavior: b,
@@ -59,16 +58,15 @@ export const RhythmQuestions = ({
   answered,
   onAnswer,
 }: RhythmProps & {
-  answered?: Answered;
-  onAnswer?: (question: Question) => void;
+  answered: Answered;
+  onAnswer: (question: Question) => void;
 }) => {
   const group = useId();
   const calendar = s.kind !== "after";
-  const shown = (q: Question, selected: boolean) =>
-    (answered?.[q] ?? true) && selected;
+  const shown = (q: Question, selected: boolean) => answered[q] && selected;
   const pick = (q: Question, apply: () => void) => () => {
     apply();
-    onAnswer?.(q);
+    onAnswer(q);
   };
   const rules = (part: Partial<TaskBehavior>) => change(s, { ...b, ...part });
   return (
@@ -514,12 +512,11 @@ export const RhythmSummary = ({
 
 export const RhythmFields = (
   props: RhythmProps & {
-    answered?: Answered;
-    onAnswer?: (question: Question) => void;
+    answered: Answered;
+    onAnswer: (question: Question) => void;
   },
 ) => {
-  const complete =
-    !props.answered || Object.values(props.answered).every(Boolean);
+  const complete = Object.values(props.answered).every(Boolean);
   return (
     <>
       <RhythmQuestions {...props} />

@@ -14,7 +14,7 @@ New notebooks come with 177 personal reward ideas, from good coffee and garden u
 
 ## Schedules and rewards
 
-Task setup asks three questions: does a second session today count, does a calendar date or your last completion start the clock, and does waiting cost a little each day or become costly after a grace period? The answers derive one of eight rhythms. The form reads back the draw and hold rules before you save; onboarding uses the same questions.
+Task setup asks three questions: does a second session today count, does a calendar date or your last completion start the clock, and does waiting cost a little each day or become costly after a grace period? New tasks start with no radio choices selected; all three behavior questions must be answered before saving. The answers derive one of eight rhythms. The form reads back the draw and hold rules before you save; onboarding uses the same questions.
 
 | Rhythm | Draws | Holds |
 | --- | --- | --- |

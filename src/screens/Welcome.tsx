@@ -52,7 +52,8 @@ export const Welcome = () => {
     clock: !!firstTask,
     cost: !!firstTask,
   });
-  const [effort, setEffort] = useState<Effort>(firstTask?.effort ?? "solid");
+  // A resumed setup may contain a draft saved before effort was chosen.
+  const [effort, setEffort] = useState<Effort | null>(null);
   const [names, setNames] = useState(["", "", ""]);
   const [error, setError] = useState("");
   const [practice, setPractice] = useState(false);
@@ -67,15 +68,19 @@ export const Welcome = () => {
     if (!document.activeElement || document.activeElement === document.body)
       heading.current?.focus({ preventScroll: true });
   }, [step]);
-  const mix = availableMix(effort, data.rewards);
-  const practiceSize = tiers.find((tier) => tier.effort === effort)!.size;
+  const mix = effort ? availableMix(effort, data.rewards) : null;
+  const practiceSize = tiers.find(
+    (tier) => tier.effort === (effort ?? "solid"),
+  )!.size;
   const practiceReward =
     data.rewards.find(
       (r) =>
         r.active &&
         r.size === practiceSize &&
         r.title ===
-          names[tiers.findIndex((tier) => tier.effort === effort)].trim(),
+          names[
+            tiers.findIndex((tier) => tier.effort === (effort ?? "solid"))
+          ].trim(),
     ) ?? rewardExamples(practiceSize, data.rewards)[0];
 
   const submitTask = async (e: FormEvent) => {
@@ -93,7 +98,7 @@ export const Welcome = () => {
       {
         title: title.trim(),
         notes: firstTask?.notes ?? "",
-        effort,
+        effort: effort ?? "solid",
         status: firstTask?.status ?? "active",
         schedule,
         behavior: { ...behavior, unitLabel: behavior.unitLabel.trim() },
@@ -112,6 +117,10 @@ export const Welcome = () => {
   const submitMenu = async (e: FormEvent) => {
     e.preventDefault();
     if (storageError || !firstTask) return;
+    if (!effort) {
+      setError("Choose an effort level.");
+      return;
+    }
     if (names.some((name) => name.length > 0 && !name.trim())) {
       setError("Give each reward you add a name, or leave it empty.");
       return;
@@ -299,27 +308,29 @@ export const Welcome = () => {
                   </label>
                 ))}
               </fieldset>
-              <p className="schedule-echo" role="status">
-                Each eligible completion has a{" "}
-                <strong>30% chance of a reward.</strong> When you win with this
-                effort:{" "}
-                {tiers
-                  .map(
-                    (tier) =>
-                      `${Math.round(mix[tier.size] * 100)}% ${tier.size}`,
-                  )
-                  .join(", ")}
-                .
-                {data.preferences.bigRewardCap !== null && (
-                  <>
-                    {" "}
-                    Big rewards are capped at {
-                      data.preferences.bigRewardCap
-                    }{" "}
-                    per week; once capped, wins come from the other sizes.
-                  </>
-                )}
-              </p>
+              {mix && (
+                <p className="schedule-echo" role="status">
+                  Each eligible completion has a{" "}
+                  <strong>30% chance of a reward.</strong> When you win with
+                  this effort:{" "}
+                  {tiers
+                    .map(
+                      (tier) =>
+                        `${Math.round(mix[tier.size] * 100)}% ${tier.size}`,
+                    )
+                    .join(", ")}
+                  .
+                  {data.preferences.bigRewardCap !== null && (
+                    <>
+                      {" "}
+                      Big rewards are capped at {
+                        data.preferences.bigRewardCap
+                      }{" "}
+                      per week; once capped, wins come from the other sizes.
+                    </>
+                  )}
+                </p>
+              )}
               <details className="additional" open={!!error}>
                 <summary>
                   Add rewards of your own <span>optional</span>

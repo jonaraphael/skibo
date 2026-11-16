@@ -79,7 +79,17 @@ it("derives a calendar start-date task from the behavior questions", async () =>
   fireEvent.change(screen.getByLabelText("Task name"), {
     target: { value: "A one-off" },
   });
+  expect(screen.getAllByRole("radio", { checked: false })).toHaveLength(6);
+  await click(screen.getByRole("button", { name: "Add task" }));
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "Answer all three questions.",
+  );
+  expect(useApp.getState().data.tasks).toHaveLength(0);
   await click(screen.getByRole("radio", { name: "A date on the calendar" }));
+  expect(screen.getAllByRole("radio", { checked: true })).toHaveLength(1);
+  expect(screen.queryByLabelText("Repeats", { exact: true })).toBeNull();
+  await click(screen.getByRole("radio", { name: "No, once per round" }));
+  await click(screen.getByRole("radio", { name: "It gets worse each day" }));
   fireEvent.change(screen.getByLabelText("Repeats", { exact: true }), {
     target: { value: "once" },
   });
@@ -124,6 +134,12 @@ it("connects a recurring habit to tier examples and its saved reward effort", as
     "A second raised bed, or a cold frame for the one you have",
   ])
     expect(screen.getByText(example)).toBeVisible();
+  expect(screen.queryAllByRole("radio", { checked: true })).toHaveLength(0);
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  await click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "Choose an effort level.",
+  );
   await click(screen.getByRole("radio", { name: "Heavy effort, big rewards" }));
   expect(screen.getByRole("status")).toHaveTextContent(
     "10% small, 35% medium, 55% big",
@@ -158,6 +174,10 @@ it("adds optional personal rewards without replacing the default menu", async ()
     <MemoryRouter>
       <Welcome />
     </MemoryRouter>,
+  );
+  expect(screen.queryAllByRole("radio", { checked: true })).toHaveLength(0);
+  await click(
+    screen.getByRole("radio", { name: "Solid effort, medium rewards" }),
   );
   await click(screen.getByText("Add rewards of your own"));
   fireEvent.change(screen.getByLabelText("Small reward"), {
@@ -200,9 +220,7 @@ it("resumes the same habit, allows revisions, and ends by inviting more habits",
       </WorkspaceContext.Provider>
     </MemoryRouter>,
   );
-  expect(
-    screen.getByRole("radio", { name: "Heavy effort, big rewards" }),
-  ).toBeChecked();
+  expect(screen.queryAllByRole("radio", { checked: true })).toHaveLength(0);
   await click(screen.getByRole("button", { name: "Back" }));
   fireEvent.change(screen.getByLabelText("First task"), {
     target: { value: "Stretch after running" },
@@ -544,4 +562,25 @@ it("rejects invalid Target input before trying to evaluate its schedule", async 
   ).toBe(false);
   expect(useApp.getState().data.tasks).toHaveLength(0);
   expect(saveNotebook).not.toHaveBeenCalled();
+});
+
+it("keeps saved answers selected when editing a task", () => {
+  render(
+    <MemoryRouter>
+      <WorkspaceContext.Provider value={workspace}>
+        <TaskEditor task={task()} close={vi.fn()} />
+      </WorkspaceContext.Provider>
+    </MemoryRouter>,
+  );
+  expect(screen.getAllByRole("radio", { checked: true })).toHaveLength(3);
+  expect(
+    screen.getByRole("radio", { name: "No, once per round" }),
+  ).toBeChecked();
+  expect(
+    screen.getByRole("radio", { name: "A date on the calendar" }),
+  ).toBeChecked();
+  expect(
+    screen.getByRole("radio", { name: "It gets worse each day" }),
+  ).toBeChecked();
+  expect(screen.getByLabelText("Your task rules")).toBeVisible();
 });
