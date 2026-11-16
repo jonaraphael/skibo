@@ -1,13 +1,13 @@
 # Skibo
 
-A calmer place for small intentions, with a chance at something good.
+Do what you want to do more often.
 
-Add a task, choose rewards that matter to you, and make a little progress. Each completion gets a 30% reward roll. Wins stay in your tray until you enjoy them.
+Add a task, choose rewards that matter to you, and build a record of your effort. Each completion gets a 30% reward roll. Wins stay in your tray until you enjoy them.
 
 New notebooks come with 177 personal reward ideas, from good coffee and garden upgrades to climbing gear and time off, with big rewards capped at one per week by default. The walkthrough connects a habit that's hard to start with reward examples at every tier, lets you add your own, and finishes by inviting you to write down more habits.
 
 - **Today:** one row per task, grouped into overdue, today, anytime, and done.
-- **Plan:** a week forecast, task search, and active/paused/archived intentions.
+- **Plan:** a week forecast, task search, and active/paused/archived tasks.
 - **Rewards:** your tray, an editable menu, payout forecasts, and the full completion record.
 - **Your rhythm:** local dates, a custom day-start hour, light/dark/system themes, reduced motion, optional sound, and a weekly cap on big rewards.
 - **Your notebook:** IndexedDB storage, offline operation after the first visit, and validated JSON backups.
@@ -15,6 +15,8 @@ New notebooks come with 177 personal reward ideas, from good coffee and garden u
 ## Schedules and rewards
 
 Tasks can happen once (with or without a date), every N days, on selected weekdays every N weeks, monthly by date or nth weekday, or N hours/days/weeks after completion. Short months use their last day when a requested date does not exist. Calendar routines have one open period; missed dates never create extra rows. Finishing late advances the schedule from the actual completion day. Pausing and archiving keep history.
+
+Calendar task rows show up to 14 scheduled days, oldest to newest: green for a completion, amber for a reward, an outline for the open period, and a slash for a skipped period. Empty squares have no completion. Late and snoozed completions fill the original due day; undo removes that mark. The count includes the open day. One-off and after-completion tasks have no calendar strip. Schedule edits recompute the strip against the current schedule; the full action record remains unchanged.
 
 The hit probability is fixed at 0.30. On a winning roll, the size weights are:
 

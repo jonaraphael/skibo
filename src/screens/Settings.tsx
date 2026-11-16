@@ -43,18 +43,16 @@ export const Settings = () => {
   return (
     <>
       <PageHeader
-        eyebrow="Make yourself at home"
-        title="Your own kind of rhythm."
-        description="A few small choices to make this space feel like yours."
+        title="Settings"
       />
       <div className="settings-grid">
         <section className="settings-panel panel">
           <p className="eyebrow">Look & feel</p>
-          <h2>A comfortable space.</h2>
+          <h2>Appearance and feedback.</h2>
           <label className="setting-row">
             <span>
               <strong>Appearance</strong>
-              <small>Follow your device, or choose a mood.</small>
+              <small>Use the device setting or select a theme.</small>
             </span>
             <select
               aria-label="Appearance"
@@ -74,7 +72,7 @@ export const Settings = () => {
           <label className="setting-row">
             <span>
               <strong>Reduced motion</strong>
-              <small>Keep the experience still and quiet.</small>
+              <small>Reduce animations.</small>
             </span>
             <input
               aria-label="Reduced motion"
@@ -86,8 +84,8 @@ export const Settings = () => {
           </label>
           <label className="setting-row">
             <span>
-              <strong>A little sound</strong>
-              <small>A gentle note when you finish a task.</small>
+              <strong>Completion sound</strong>
+              <small>Play a tone when you complete a task.</small>
             </span>
             <input
               aria-label="Completion sound"
@@ -99,12 +97,12 @@ export const Settings = () => {
           </label>
         </section>
         <section className="settings-panel panel">
-          <p className="eyebrow">Your rhythm</p>
-          <h2>Days that fit your life.</h2>
+          <p className="eyebrow">Schedule</p>
+          <h2>Day and reward limits.</h2>
           <label className="setting-row">
             <span>
-              <strong>My day starts at</strong>
-              <small>Late nights can belong to yesterday.</small>
+              <strong>Day starts at</strong>
+              <small>Completions before this hour belong to the previous day.</small>
             </span>
             <select
               aria-label="Day starts at"
@@ -124,7 +122,7 @@ export const Settings = () => {
           <label className="setting-row">
             <span>
               <strong>Big rewards per week</strong>
-              <small>Mon–Sun. Smaller rewards keep flowing.</small>
+              <small>Monday–Sunday. This cap applies only to big rewards.</small>
             </span>
             <select
               aria-label="Big rewards per week"
@@ -167,8 +165,8 @@ export const Settings = () => {
           </div>
         </section>
         <section className="settings-panel panel backup-panel">
-          <p className="eyebrow">Yours to keep</p>
-          <h2>A little peace of mind.</h2>
+          <p className="eyebrow">Data</p>
+          <h2>Backup and restore.</h2>
           <p>
             Your notebook stays in this browser, available offline after the
             first visit. Back it up before clearing browser data or moving to a
@@ -208,12 +206,8 @@ export const Settings = () => {
         </section>
         <section className="settings-panel about-panel">
           <Icon name="leaf" size={30} />
-          <h2>Little by little.</h2>
-          <p>
-            Skibo pairs small intentions with a chance at something good.
-            No streak penalties. No lost progress. Just a reason to come back.
-          </p>
-          <p className="eyebrow">Made for a human pace.</p>
+          <h2>Skibo</h2>
+          <p>Tasks, rewards, and a record of what you've done.</p>
         </section>
       </div>
       {restore && (

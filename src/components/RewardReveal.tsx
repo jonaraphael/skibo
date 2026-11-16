@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useApp } from "../app/store";
 import { Dialog } from "./Dialog";
 import { Icon } from "./Icon";
+import { TaskHistory } from "./TaskHistory";
 export const RewardReveal = () => {
   const { reveal, dismissReveal, enjoy, data } = useApp();
   const [settled, setSettled] = useState(false);
@@ -51,24 +52,30 @@ export const RewardReveal = () => {
     return (
       <div className="roll-status" role="status">
         <span className="rolling-lamp" />
-        <span>A little progress. A little chance.</span>
+        <span>Drawing reward…</span>
       </div>
     );
   return (
-    <Dialog
-      title="Something good, earned"
-      close={dismissReveal}
-      className="reveal-sheet"
-    >
+    <Dialog title="Reward" close={dismissReveal} className="reveal-sheet">
       <div className="reward-reveal-orb">
         <i />
       </div>
-      <p className="reward-label">{reveal.reward.size} reward</p>
+      <p className="reward-label">{reveal.reward.size}</p>
       <h2>{reveal.reward.title}</h2>
       <p className="lede">
-        From <strong>{reveal.taskTitle}</strong>.<br />A little something, just
-        for you.
+        {reveal.taskTitle} ·{" "}
+        {new Date(reveal.at).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}
       </p>
+      {data.tasks
+        .filter((t) => t.id === reveal.taskId)
+        .map((t) => (
+          <div className="reveal-history" key={t.id}>
+            <TaskHistory task={t} />
+          </div>
+        ))}
       <div className="two-col">
         <button className="button secondary" onClick={() => enjoy(reveal.id)}>
           Enjoy now <Icon name="check" size={17} />
@@ -81,9 +88,8 @@ export const RewardReveal = () => {
         className="text-link reveal-undo"
         onClick={() => useApp.getState().undo(reveal.id)}
       >
-        Undo completion
+        Undo
       </button>
-      <p className="quiet-note">Every completion has a 3 in 10 chance.</p>
     </Dialog>
   );
 };

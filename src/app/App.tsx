@@ -17,7 +17,7 @@ import { Reward, Task } from "./types";
 const navigation = [
   { to: "/", label: "Today", icon: "today" },
   { to: "/plan", label: "Plan", icon: "plan" },
-  { to: "/rewards/tray", label: "Your rewards", icon: "rewards" },
+  { to: "/rewards/tray", label: "Rewards", icon: "rewards" },
 ];
 export const App = () => {
   const state = useApp();
@@ -61,17 +61,17 @@ export const App = () => {
   const closeReward = () => setReward(undefined);
   const currentLabel =
     location.pathname === "/"
-      ? "Your day"
+      ? "Today"
       : location.pathname === "/plan"
-        ? "Your plan"
+        ? "Plan"
         : location.pathname === "/settings"
           ? "Settings"
-          : "Something good";
+          : "Rewards";
   if (state.loadError)
     return (
       <div className="storage-gate">
         <Icon name="leaf" size={32} />
-        <h1>Your notebook needs a moment.</h1>
+        <h1>Unable to open your notebook.</h1>
         <p role="alert">{state.loadError}</p>
         <p>
           Existing browser data has been kept. Try reopening the app with
@@ -105,7 +105,7 @@ export const App = () => {
   if (!state.loaded)
     return (
       <div className="storage-gate" role="status">
-        <Icon name="leaf" size={32} /> Opening your little space…
+        <Icon name="leaf" size={32} /> Opening Skibo…
       </div>
     );
   return (
@@ -136,7 +136,6 @@ export const App = () => {
           </Link>
           {!onboarding && (
             <>
-              <p className="nav-caption eyebrow">Your little space</p>
               <nav aria-label="Primary">
                 {navigation.map((n) => (
                   <NavLink
@@ -159,11 +158,6 @@ export const App = () => {
                 ))}
               </nav>
               <div className="sidebar-foot">
-                <p>
-                  Little by little.
-                  <br />
-                  <span>That's how good things grow.</span>
-                </p>
                 <NavLink to="/settings">
                   <Icon name="settings" size={19} /> Settings
                 </NavLink>
@@ -182,7 +176,7 @@ export const App = () => {
         <div className="app-content">
           <header className="workspace-topbar">
             <span className="desktop-breadcrumb">
-              Your space <span>/</span> {currentLabel}
+              {currentLabel}
             </span>
             <Link className="mobile-wordmark" to="/" aria-label="Skibo home">
               Skibo
@@ -244,7 +238,7 @@ export const App = () => {
                     <Icon name={n.icon} size={22} />
                     {n.icon === "rewards" && tray > 0 && <i>{tray}</i>}
                   </span>
-                  {n.label === "Your rewards" ? "Rewards" : n.label}
+                  {n.label}
                 </NavLink>
               ))}
             </nav>

@@ -110,7 +110,7 @@ export const useApp = create<AppState>((set, get) => ({
     }));
     if (!saved) return false;
     get().notify({
-      message: id ? "Task updated." : "A little intention, added.",
+      message: id ? "Task updated." : "Task added.",
     });
     return true;
   },
@@ -153,7 +153,7 @@ export const useApp = create<AppState>((set, get) => ({
     if (!get().change((d) => ({ ...d, events: [...d.events, event] }))) return;
     set({ reveal: event });
     get().notify({
-      message: "Done. That counts.",
+      message: event.reward ? "Done. Reward earned." : "Done. No reward.",
       undo: () => get().undo(event.id),
     });
   },
@@ -218,7 +218,7 @@ export const useApp = create<AppState>((set, get) => ({
     if (!get().change((d) => ({ ...d, events: [...d.events, event] }))) return;
     set({ reveal: null });
     get().notify({
-      message: "Enjoy it. You've earned it.",
+      message: "Reward enjoyed.",
       undo: () => get().undo(event.id),
     });
   },

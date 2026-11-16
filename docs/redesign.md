@@ -1,10 +1,10 @@
-# A little intention. A little good.
+# Tasks, rewards, and evidence
 
 The redesign centers a complete loop: choose something to do, finish it, see the outcome, and enjoy something you chose. The product should make the next action obvious while remaining comfortable to return to after an absence.
 
 ## The experience
 
-Today is the home screen. It shows a day record, one open row per active task, and a persistent reward tray. Late tasks retain their original date but never multiply. Effort appears as three quiet dots; amber is reserved for rewards. Completing a task gives brief feedback, followed by a reward sheet on a win. Both quiet outcomes and wins count as progress.
+Today is the home screen. It shows the date and outcome counts, one open row per active task with a 14-period evidence strip, and a list of waiting rewards. Late tasks retain their original date but never multiply. Effort appears as three quiet dots; amber is reserved for rewards. Completing a task gives brief feedback, followed by a reward sheet on a win. Completed rows show the time and reward outcome. Green history squares mark completions; amber marks rewards. Late completions count toward the original due day, and undo removes the mark. Strips follow the current calendar schedule; one-off and after-completion tasks have no strip.
 
 Plan combines the old Tasks and Upcoming screens. A seven-day view shows calendar forecasts and the next known after-completion date. All Tasks supports search, pause, resume, and archive. Editing a task includes its recent history. Future repeats are predictions rather than stored task instances.
 

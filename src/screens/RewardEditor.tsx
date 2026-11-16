@@ -31,14 +31,8 @@ export const RewardEditor = ({
     else setErrorText("Check this reward before saving.");
   };
   return (
-    <Dialog
-      title={reward ? "Edit a good thing" : "Something to look forward to"}
-      close={close}
-    >
-      <h2>What feels like a reward?</h2>
-      <p className="lede">
-        Make it yours. A moment, an experience, a little treat.
-      </p>
+    <Dialog title={reward ? "Edit reward" : "New reward"} close={close}>
+      <h2>{reward ? "Edit reward" : "New reward"}</h2>
       <form className="editor-form" onSubmit={submit}>
         <label className="field title-field">
           <span>Reward name</span>
@@ -52,7 +46,7 @@ export const RewardEditor = ({
           />
         </label>
         <fieldset>
-          <legend>How big does it feel?</legend>
+          <legend>Reward size</legend>
           <div className="effort-picker">
             {(["small", "medium", "big"] as const).map((s, i) => (
               <button
@@ -69,8 +63,8 @@ export const RewardEditor = ({
           </div>
         </fieldset>
         <p className="schedule-echo">
-          Sizes are personal. A small reward might be a lovely break; a big one,
-          a day to yourself. Earned rewards keep their original name and size.
+          Choose sizes that fit your budget and time. Earned rewards keep their
+          original name and size.
         </p>
         {errorText && (
           <p className="error-text" role="alert">
@@ -82,13 +76,12 @@ export const RewardEditor = ({
           className="button primary full-width"
           disabled={!!error}
         >
-          {reward ? "Save reward" : "Add to my menu"}
+          {reward ? "Save reward" : "Add reward"}
         </button>
       </form>
       <details className="suggestions">
         <summary>
-          Need a little inspiration?{" "}
-          <span>{REWARD_SUGGESTIONS.length} ideas</span>
+          Reward ideas <span>{REWARD_SUGGESTIONS.length} ideas</span>
         </summary>
         <label className="field">
           <span>Search reward ideas</span>

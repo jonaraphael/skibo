@@ -4,7 +4,6 @@ import { useApp } from "../app/store";
 import { TaskPeriod } from "../app/types";
 import { PageHeader, EmptyState } from "../components/Shared";
 import { Icon } from "../components/Icon";
-import { RecordChart } from "../components/RecordChart";
 import { TaskRow } from "../components/TaskRow";
 import { useWorkspace } from "../components/Workspace";
 import { dayKey, periodFor, prettyDate } from "../lib/schedule/calendar";
@@ -29,10 +28,10 @@ export const Dashboard = () => {
     ["late", "today", "anytime"].includes(p.bucket),
   );
   const groups: { bucket: TaskPeriod["bucket"]; label: string }[] = [
-    { bucket: "late", label: "A little overdue" },
-    { bucket: "today", label: "For today" },
-    { bucket: "anytime", label: "Whenever you're ready" },
-    { bucket: "done", label: "Done & dusted" },
+    { bucket: "late", label: "Overdue" },
+    { bucket: "today", label: "Today" },
+    { bucket: "anytime", label: "Anytime" },
+    { bucket: "done", label: "Done" },
   ];
   const tray = trayRewards(data.events);
   const filtered = periods.filter(
@@ -41,13 +40,12 @@ export const Dashboard = () => {
   return (
     <>
       <PageHeader
-        eyebrow={prettyDate(today, {
+        title={prettyDate(today, {
           weekday: "long",
           month: "long",
           day: "numeric",
         })}
-        title="A little progress, every day."
-        description="Make space for what matters. Let something good follow."
+        description={`${done.length} done · ${paid} reward${paid === 1 ? "" : "s"} · ${open.length} open`}
       >
         <button
           className="button primary desktop-add"
@@ -58,33 +56,9 @@ export const Dashboard = () => {
       </PageHeader>
       <div className="workspace-columns">
         <div className="workspace-main">
-          <section className="daily-record panel">
-            <div className="panel-heading">
-              <p className="eyebrow">Today's little wins</p>
-              <Link to="/rewards/record" className="text-link">
-                Your record <Icon name="arrow" size={15} />
-              </Link>
-            </div>
-            <div className="daily-numbers">
-              <div>
-                <strong>{done.length}</strong>
-                <span>tasks done</span>
-              </div>
-              <div className="reward-number">
-                <strong>{paid}</strong>
-                <span>rewards earned</span>
-              </div>
-              <span className="remaining-pill">
-                {open.length === 0
-                  ? "Room to breathe"
-                  : `${open.length} still to go`}
-              </span>
-            </div>
-            <RecordChart events={done} compact />
-          </section>
           <div className="list-heading">
             <h2>
-              Your intentions <span>{open.length}</span>
+              Tasks <span>{open.length}</span>
             </h2>
             <div className="filter-pills" aria-label="Filter by effort">
               {["all", "light", "solid", "heavy"].map((f) => (
@@ -94,7 +68,7 @@ export const Dashboard = () => {
                   className={filter === f ? "selected" : ""}
                   onClick={() => setFilter(f)}
                 >
-                  {f === "all" ? "All effort" : f}
+                  {f === "all" ? "All" : f}
                 </button>
               ))}
             </div>
@@ -127,100 +101,73 @@ export const Dashboard = () => {
             <EmptyState
               title={
                 filter !== "all"
-                  ? "Nothing here at this effort."
+                  ? "No tasks at this effort."
                   : data.tasks.length
-                    ? "A little room to breathe."
-                    : "Every good day starts somewhere."
+                    ? "No tasks due."
+                    : "No tasks yet."
               }
             >
               {filter !== "all"
-                ? "Try another filter, or add a new intention."
-                : "Add something you'd like to do, or enjoy the space you've made."}
+                ? "Try another filter or add a task."
+                : "Add a task to get started, or use Plan to see upcoming tasks."}
             </EmptyState>
           )}
           <button className="add-intention" onClick={() => openTask()}>
             <span>
               <Icon name="plus" size={18} />
             </span>{" "}
-            Add a little intention
+            Add task
           </button>
-          <p className="quiet-note">Progress counts. Even when it's small.</p>
         </div>
         <aside className="workspace-aside">
           <section className="tray-panel">
             <div className="panel-heading">
               <p className="eyebrow">
-                <i className="reward-dot" /> Your reward tray
+                <i className="reward-dot" /> Tray
               </p>
               <span className="tray-count">{tray.length}</span>
             </div>
             {tray.length ? (
               <>
-                <div className="tray-illustration" aria-hidden="true">
-                  <i />
-                  <i />
-                  <span />
-                </div>
-                <h2>Something good is waiting.</h2>
-                <p>
-                  {tray.length}{" "}
-                  {tray.length === 1
-                    ? "reward, earned by you."
-                    : "rewards, earned by you."}{" "}
-                  Take them at your own pace.
-                </p>
+                <ul className="tray-preview">
+                  {[...tray].reverse().map((e) => (
+                    <li key={e.id}>
+                      <strong>{e.reward!.title}</strong>
+                      <span>
+                        {e.reward!.size} · {e.taskTitle} ·{" "}
+                        {dayKey(new Date(e.at), data.preferences.dayStart) ===
+                        today
+                          ? "today"
+                          : prettyDate(
+                              dayKey(new Date(e.at), data.preferences.dayStart),
+                            )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
                 <Link
                   className="button reward-button full-width"
                   to="/rewards/tray"
                 >
-                  Open your tray <Icon name="arrow" size={17} />
+                  Open tray <Icon name="arrow" size={17} />
                 </Link>
               </>
             ) : (
               <>
-                <div className="tray-illustration empty" aria-hidden="true">
-                  <i />
-                  <i />
-                  <span />
-                </div>
-                <h2>A place for good things.</h2>
+                <h2>No rewards waiting.</h2>
                 <p>
-                  Each task you finish has a 3 in 10 chance of earning a reward
-                  you chose.
+                  Each completion has a 30% chance of earning a reward from your
+                  menu.
                 </p>
                 <Link className="text-link" to="/rewards/menu">
-                  Make it your menu <Icon name="arrow" size={16} />
+                  Edit rewards <Icon name="arrow" size={16} />
                 </Link>
               </>
             )}
           </section>
           <section className="how-it-works">
-            <span className="eyebrow">A small, happy loop</span>
-            <ol>
-              <li>
-                <span>01</span>
-                <div>
-                  <strong>Do your thing.</strong>
-                  <p>One task. At your own pace.</p>
-                </div>
-              </li>
-              <li>
-                <span>02</span>
-                <div>
-                  <strong>Take a chance.</strong>
-                  <p>Every completion gets a roll.</p>
-                </div>
-              </li>
-              <li>
-                <span>03</span>
-                <div>
-                  <strong>Enjoy what's yours.</strong>
-                  <p>Rewards wait until you're ready.</p>
-                </div>
-              </li>
-            </ol>
             <Link to="/rewards/record" className="text-link">
-              See the odds, openly <Icon name="arrow" size={15} />
+              Odds and record <Icon name="arrow" size={15} />
             </Link>
           </section>
         </aside>

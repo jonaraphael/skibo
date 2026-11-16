@@ -65,11 +65,7 @@ export const Plan = () => {
   };
   return (
     <>
-      <PageHeader
-        eyebrow="A little foresight"
-        title="Give your week some shape."
-        description="A plan to come back to. With room for life to happen."
-      >
+      <PageHeader title="Plan">
         <button
           className="button primary desktop-add"
           onClick={() => openTask()}
@@ -98,7 +94,7 @@ export const Plan = () => {
           <Icon name="search" size={17} />
           <input
             aria-label="Search tasks"
-            placeholder="Find an intention…"
+            placeholder="Search tasks"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -165,7 +161,7 @@ export const Plan = () => {
               aria-pressed={status === s}
               onClick={() => setStatus(s)}
             >
-              {s === "all" ? "Everything" : s}
+              {s === "all" ? "All" : s}
             </button>
           ))}
         </div>
@@ -174,7 +170,7 @@ export const Plan = () => {
         <div className="group-label">
           <h3>
             {mode === "all"
-              ? `${status === "all" ? "All" : status} intentions`
+              ? `${status === "all" ? "All" : status} tasks`
               : prettyDate(selected, {
                   weekday: "long",
                   month: "long",
@@ -191,20 +187,13 @@ export const Plan = () => {
           />
         ))}
         {rows.length === 0 && (
-          <EmptyState
-            title={query ? "No intentions found." : "A little breathing room."}
-          >
+          <EmptyState title={query ? "No tasks found." : "No tasks scheduled."}>
             {query
               ? "Try a different search."
-              : "Leave it open, or add something you'd like to make time for."}
+              : "Add a task or choose another day."}
           </EmptyState>
         )}
       </section>
-      <p className="quiet-note">
-        {mode === "week"
-          ? "Future repeats are a forecast. After-done tasks show their next known date."
-          : "Pausing or archiving a task keeps every bit of its history."}
-      </p>
     </>
   );
 };

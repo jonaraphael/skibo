@@ -6,6 +6,7 @@ import { EffortPips } from "./Shared";
 import { useWorkspace } from "./Workspace";
 import { Icon } from "./Icon";
 import { completions } from "../lib/rewards/engine";
+import { TaskHistory } from "./TaskHistory";
 
 export const TaskRow = ({
   period,
@@ -38,7 +39,7 @@ export const TaskRow = ({
   const meta = management
     ? `${scheduleLabel(task.schedule)}${task.status !== "active" ? ` · ${task.status}` : ""}`
     : bucket === "late" && period.date
-      ? `Was due ${prettyDate(period.date, { weekday: "short", month: "short", day: "numeric" })}`
+      ? `Due ${prettyDate(period.date, { weekday: "short", month: "short", day: "numeric" })}`
       : period.time
         ? `By ${period.time} · ${scheduleLabel(task.schedule)}`
         : scheduleLabel(task.schedule);
@@ -116,9 +117,28 @@ export const TaskRow = ({
         <span
           className={`task-meta ${bucket === "late" && !management ? "late-text" : ""}`}
         >
-          {meta}
+          {bucket === "done" && !management && lastCompletion ? (
+            <>
+              {new Date(lastCompletion.at).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}{" "}
+              ·{" "}
+              {lastCompletion.reward ? (
+                <span className="task-outcome">
+                  <i className="reward-dot" />
+                  {lastCompletion.reward.title}
+                </span>
+              ) : (
+                "no reward"
+              )}
+            </>
+          ) : (
+            meta
+          )}
         </span>
         {task.notes && <span className="task-note">{task.notes}</span>}
+        <TaskHistory task={task} />
       </button>
       <EffortPips effort={task.effort} />
       <details

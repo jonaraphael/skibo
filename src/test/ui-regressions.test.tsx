@@ -86,8 +86,8 @@ it("connects a recurring habit to tier examples and its saved reward effort", ()
       <Welcome />
     </MemoryRouter>,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Let's begin" }));
-  fireEvent.change(screen.getByLabelText("A habit I want to build"), {
+  fireEvent.click(screen.getByRole("button", { name: "Get started" }));
+  fireEvent.change(screen.getByLabelText("First task"), {
     target: { value: "Do ten minutes of mobility" },
   });
   fireEvent.change(screen.getByLabelText("How often?"), {
@@ -95,7 +95,7 @@ it("connects a recurring habit to tier examples and its saved reward effort", ()
   });
   fireEvent.click(
     screen.getByRole("button", {
-      name: "Give it something to look forward to",
+      name: "Continue",
     }),
   );
   expect(screen.getByText("“Do ten minutes of mobility”")).toBeVisible();
@@ -111,9 +111,7 @@ it("connects a recurring habit to tier examples and its saved reward effort", ()
   expect(screen.getByRole("status")).toHaveTextContent(
     "10% small, 35% medium, 55% big",
   );
-  fireEvent.click(
-    screen.getByRole("button", { name: "Try it with this habit" }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   const data = useApp.getState().data;
   expect(data.tasks).toHaveLength(1);
   expect(data.tasks[0]).toMatchObject({
@@ -147,9 +145,7 @@ it("adds optional personal rewards without replacing the default menu", () => {
   fireEvent.change(screen.getByLabelText("Small reward"), {
     target: { value: "   " },
   });
-  fireEvent.click(
-    screen.getByRole("button", { name: "Try it with this habit" }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   expect(screen.getByRole("alert")).toBeVisible();
   expect(useApp.getState().data.rewards[0].title.trim()).not.toBe("");
   fireEvent.change(screen.getByLabelText("Small reward"), {
@@ -161,9 +157,7 @@ it("adds optional personal rewards without replacing the default menu", () => {
   fireEvent.change(screen.getByLabelText("Big reward"), {
     target: { value: "My big reward" },
   });
-  fireEvent.click(
-    screen.getByRole("button", { name: "Try it with this habit" }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   expect(useApp.getState().data.rewards).toHaveLength(180);
   expect(useApp.getState().data.rewards.slice(0, 177)).toEqual(originalRewards);
   expect(
@@ -175,9 +169,7 @@ it("adds optional personal rewards without replacing the default menu", () => {
       ?.size,
   ).toBe("big");
   fireEvent.click(screen.getByRole("button", { name: "Back" }));
-  fireEvent.click(
-    screen.getByRole("button", { name: "Try it with this habit" }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   expect(useApp.getState().data.rewards).toHaveLength(180);
 });
 it("resumes the same habit, allows revisions, and ends by inviting more habits", () => {
@@ -194,28 +186,26 @@ it("resumes the same habit, allows revisions, and ends by inviting more habits",
     screen.getByRole("radio", { name: "Heavy effort, big rewards" }),
   ).toBeChecked();
   fireEvent.click(screen.getByRole("button", { name: "Back" }));
-  fireEvent.change(screen.getByLabelText("A habit I want to build"), {
+  fireEvent.change(screen.getByLabelText("First task"), {
     target: { value: "Stretch after running" },
   });
   fireEvent.click(
     screen.getByRole("button", {
-      name: "Give it something to look forward to",
+      name: "Continue",
     }),
   );
   fireEvent.click(
     screen.getByRole("radio", { name: "Light effort, small rewards" }),
   );
-  fireEvent.click(
-    screen.getByRole("button", { name: "Try it with this habit" }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   expect(useApp.getState().data.tasks).toHaveLength(1);
   expect(useApp.getState().data.tasks[0]).toMatchObject({
     id: first.id,
     title: "Stretch after running",
     effort: "light",
   });
-  expect(screen.getByText(/Write down as many habits/)).toBeVisible();
-  fireEvent.click(screen.getByRole("button", { name: "Write down my habits" }));
+  expect(screen.getByText(/Add the other habits/)).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Add more tasks" }));
   expect(useApp.getState().data.onboarded).toBe(true);
   expect(openTask).toHaveBeenCalledOnce();
 });
@@ -234,13 +224,11 @@ it("blocks advancing the walkthrough when storage is unavailable", () => {
       name: "What should doing this habit give you a chance to earn?",
     })
     .closest("form")!;
-  expect(
-    within(form).getByRole("button", { name: "Try it with this habit" }),
-  ).toBeDisabled();
+  expect(within(form).getByRole("button", { name: "Continue" })).toBeDisabled();
   fireEvent.submit(form);
   expect(useApp.getState().data.onboarded).toBe(false);
   expect(
-    screen.getByRole("heading", { name: "Make the effort feel worth it." }),
+    screen.getByRole("heading", { name: "Set the effort." }),
   ).toBeVisible();
 });
 it("leaves older resolved one-offs in history without showing them on Today", () => {
