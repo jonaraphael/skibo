@@ -128,7 +128,7 @@ export const TaskRow = ({
                     {lastCompletion.reward.title}
                   </span>
                 ) : lastCompletion.roll === null ? (
-                  "early reset · no draw"
+                  "clock restarted · no draw"
                 ) : (
                   "no reward"
                 ),
@@ -138,8 +138,8 @@ export const TaskRow = ({
             <Dotted items={[meta]} />
           )}
         </span>
-        {period.hold && (
-          <span className="task-hold">Tray on hold · {period.hold}</span>
+        {period.hold && !management && (
+          <span className="task-hold">Holding the reward tray</span>
         )}
         {task.notes && <span className="task-note">{task.notes}</span>}
         <TaskHistory task={task} />

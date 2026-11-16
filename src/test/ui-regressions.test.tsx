@@ -97,7 +97,21 @@ it("connects a recurring habit to tier examples and its saved reward effort", as
   fireEvent.change(screen.getByLabelText("First task"), {
     target: { value: "Do ten minutes of mobility" },
   });
-  await click(screen.getByRole("radio", { name: "Yes, each session counts" }));
+  // Defaults never answer for the person: nothing is selected and the
+  // schedule fields wait until all three questions have answers.
+  expect(screen.queryAllByRole("radio", { checked: true })).toHaveLength(0);
+  expect(screen.queryByLabelText("Every")).toBeNull();
+  await click(screen.getByRole("button", { name: "Continue" }));
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "Answer all three questions.",
+  );
+  expect(useApp.getState().data.tasks).toHaveLength(0);
+  await click(screen.getByRole("radio", { name: "Yes, each one adds up" }));
+  await click(screen.getByRole("radio", { name: "Time since I last did it" }));
+  await click(screen.getByRole("radio", { name: "It gets worse each day" }));
+  expect(screen.getByLabelText("Your task rules")).toHaveTextContent(
+    "Practice",
+  );
   await click(
     screen.getByRole("button", {
       name: "Continue",

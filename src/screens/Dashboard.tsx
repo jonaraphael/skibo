@@ -26,13 +26,17 @@ export const Dashboard = () => {
     .filter(
       (p) => p.bucket !== "done" || done.some((e) => e.taskId === p.task.id),
     );
+  // A restarted clock with no draw yet is completable but not due.
+  const group = (p: TaskPeriod) =>
+    p.bucket === "anytime" && !p.drawEligible ? "resting" : p.bucket;
   const open = periods.filter((p) =>
-    ["late", "today", "anytime"].includes(p.bucket),
+    ["late", "today", "anytime"].includes(group(p)),
   );
-  const groups: { bucket: TaskPeriod["bucket"]; label: string }[] = [
+  const groups: { bucket: string; label: string }[] = [
     { bucket: "late", label: "Overdue" },
     { bucket: "today", label: "Today" },
     { bucket: "anytime", label: "Anytime" },
+    { bucket: "resting", label: "Not due yet" },
     { bucket: "done", label: "Done" },
   ];
   const tray = trayRewards(data.events);
@@ -87,7 +91,7 @@ export const Dashboard = () => {
           <div className="task-groups">
             {groups.map(({ bucket, label }) => {
               const rows = filtered
-                .filter((p) => p.bucket === bucket)
+                .filter((p) => group(p) === bucket)
                 .sort((a, b) =>
                   `${a.date ?? ""}${a.time}`.localeCompare(
                     `${b.date ?? ""}${b.time}`,

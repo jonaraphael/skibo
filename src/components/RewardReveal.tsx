@@ -88,17 +88,18 @@ export const RewardReveal = () => {
         ))}
       {held && (
         <p className="task-hold">
-          Tray on hold. Complete the listed tasks or declare a miss to enjoy
-          rewards.
+          The reward tray is on hold. It opens when the held tasks on Today are
+          completed or declared missed.
         </p>
       )}
       <div className="two-col">
         <button
-          className="button secondary"
+          className={`button secondary ${held ? "held" : ""}`}
           disabled={disabled || held}
           onClick={() => enjoy(reveal.id)}
         >
-          {held ? "Tray on hold" : "Enjoy now"} <Icon name="check" size={17} />
+          {held ? "On hold" : "Enjoy now"}
+          {!held && <Icon name="check" size={17} />}
         </button>
         <button className="button primary" onClick={dismissReveal}>
           Keep in tray

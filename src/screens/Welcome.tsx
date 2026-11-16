@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Effort, RewardSize } from "../app/types";
 import { rewardExamples } from "../lib/rewards/rewardPools";
@@ -7,7 +7,7 @@ import { Icon } from "../components/Icon";
 import { Mark, Sprig } from "../components/Marks";
 import { useWorkspace } from "../components/Workspace";
 import { dayKey } from "../lib/schedule/calendar";
-import { RhythmFields } from "../components/RhythmFields";
+import { Answered, RhythmFields } from "../components/RhythmFields";
 import { defaultBehavior, defaultSchedule } from "../lib/tasks/taxonomy";
 import { availableMix } from "../lib/rewards/engine";
 
@@ -47,10 +47,26 @@ export const Welcome = () => {
   const [behavior, setBehavior] = useState(
     firstTask?.behavior ?? defaultBehavior(today),
   );
+  const [answered, setAnswered] = useState<Answered>({
+    payoff: !!firstTask,
+    clock: !!firstTask,
+    cost: !!firstTask,
+  });
   const [effort, setEffort] = useState<Effort>(firstTask?.effort ?? "solid");
   const [names, setNames] = useState(["", "", ""]);
   const [error, setError] = useState("");
   const [practice, setPractice] = useState(false);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const shownStep = useRef(step);
+  // Each step starts at its heading, not wherever the last step was scrolled.
+  useEffect(() => {
+    if (shownStep.current === step) return;
+    shownStep.current = step;
+    window.scrollTo(0, 0);
+    // Keep an autofocused field; otherwise start keyboard focus at the heading.
+    if (!document.activeElement || document.activeElement === document.body)
+      heading.current?.focus({ preventScroll: true });
+  }, [step]);
   const mix = availableMix(effort, data.rewards);
   const practiceSize = tiers.find((tier) => tier.effort === effort)!.size;
   const practiceReward =
@@ -65,7 +81,11 @@ export const Welcome = () => {
   const submitTask = async (e: FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
-      setError("Write down one habit you'd like to build.");
+      setError("Name the task first.");
+      return;
+    }
+    if (!Object.values(answered).every(Boolean)) {
+      setError("Answer all three questions.");
       return;
     }
     if (storageError) return;
@@ -126,16 +146,42 @@ export const Welcome = () => {
       <li key={reward.id}>{reward.title}</li>
     ));
 
+  const back = (
+    <button
+      className="text-link"
+      type="button"
+      onClick={() => {
+        setError("");
+        setStep(step - 1);
+      }}
+    >
+      Back
+    </button>
+  );
+
   return (
-    <section className={`welcome ${step === 2 ? "welcome-menu" : ""}`}>
-      <div className="welcome-art" aria-hidden="true">
-        <Sprig />
-      </div>
+    <section
+      className={`welcome ${step === 0 ? "welcome-intro" : "welcome-step"}`}
+    >
+      {step === 0 && (
+        <div className="welcome-art" aria-hidden="true">
+          <Sprig />
+        </div>
+      )}
       <div className="welcome-content">
-        <p className="eyebrow">Skibo</p>
+        {step > 0 && (
+          <div className="welcome-step-head">
+            <p className="eyebrow">Step {step} of 3</p>
+            <div className="welcome-progress" aria-hidden="true">
+              {[1, 2, 3].map((s) => (
+                <i key={s} className={s <= step ? "filled" : ""} />
+              ))}
+            </div>
+          </div>
+        )}
         {step === 0 && (
           <>
-            <h1>
+            <h1 ref={heading} tabIndex={-1}>
               <span className="phrase">Do what you want</span>{" "}
               <span className="phrase">to do more often.</span>
             </h1>
@@ -168,10 +214,12 @@ export const Welcome = () => {
         )}
         {step === 1 && (
           <>
-            <h1>Choose your first task.</h1>
+            <h1 ref={heading} tabIndex={-1}>
+              Choose your first task.
+            </h1>
             <p className="lede">
-              Something you want to do regularly, but find hard to get yourself
-              to do. Start with one; there will be room for the rest.
+              Pick one task you keep putting off. Three questions set when it
+              comes due and how its rewards work.
             </p>
             <form className="editor-form" onSubmit={submitTask}>
               <label className="field title-field">
@@ -182,13 +230,17 @@ export const Welcome = () => {
                   required
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Do ten minutes of mobility"
+                  placeholder="e.g. Water the plants"
                 />
               </label>
               <RhythmFields
                 schedule={schedule}
                 behavior={behavior}
                 today={today}
+                answered={answered}
+                onAnswer={(q) =>
+                  setAnswered((current) => ({ ...current, [q]: true }))
+                }
                 change={(s, b) => {
                   setSchedule(s);
                   setBehavior(b);
@@ -199,23 +251,27 @@ export const Welcome = () => {
                   {error}
                 </p>
               )}
-              <button className="button primary" disabled={!!storageError}>
-                Continue <Icon name="arrow" size={18} />
-              </button>
+              <div className="welcome-actions">
+                <button className="button primary" disabled={!!storageError}>
+                  Continue <Icon name="arrow" size={18} />
+                </button>
+              </div>
             </form>
           </>
         )}
         {step === 2 && (
           <>
-            <h1>Set the effort.</h1>
+            <h1 ref={heading} tabIndex={-1}>
+              Set the effort.
+            </h1>
             <p className="lede">
-              For <strong>“{firstTask?.title}”</strong>, what level of reward
-              would help you get started? Judge the effort it takes you, even if
-              the habit sounds small.
+              Effort sets the reward size for{" "}
+              <strong>“{firstTask?.title}”</strong>. Rate the effort it costs
+              you, not how small it sounds.
             </p>
             <p className="welcome-menu-note">
-              Your menu has {data.rewards.length} rewards. Keep the ones you
-              want, pause others, or add your own.
+              The menu holds {data.rewards.length} rewards. Add your own below;
+              pause or edit any of them later under Rewards.
             </p>
             <form onSubmit={submitMenu} className="editor-form">
               <fieldset className="welcome-tiers">
@@ -295,15 +351,18 @@ export const Welcome = () => {
                   {error}
                 </p>
               )}
-              <button className="button primary" disabled={!!storageError}>
-                Continue <Icon name="arrow" size={18} />
-              </button>
+              <div className="welcome-actions">
+                <button className="button primary" disabled={!!storageError}>
+                  Continue <Icon name="arrow" size={18} />
+                </button>
+                {back}
+              </div>
             </form>
           </>
         )}
         {step === 3 && (
           <>
-            <h1>
+            <h1 ref={heading} tabIndex={-1}>
               <span className="phrase">Finish a task.</span>{" "}
               <span className="phrase">Draw a reward.</span>
             </h1>
@@ -333,43 +392,21 @@ export const Welcome = () => {
                 </button>
               )}
             </div>
-            <div className="welcome-next">
-              <h2>Add more tasks</h2>
-              <p>
-                Add the other habits you want to build. You can adjust their
-                schedules and effort later.
-              </p>
+            <p className="welcome-menu-note">
+              Add the other habits you want to build. Schedules and effort can
+              change later.
+            </p>
+            <div className="welcome-actions">
+              <button
+                className="button primary"
+                disabled={!!storageError}
+                onClick={addHabits}
+              >
+                Add more tasks <Icon name="arrow" size={18} />
+              </button>
+              {back}
             </div>
-            <button
-              className="button primary"
-              disabled={!!storageError}
-              onClick={addHabits}
-            >
-              Add more tasks <Icon name="arrow" size={18} />
-            </button>
           </>
-        )}
-        {step > 1 && (
-          <button
-            className="text-link welcome-back"
-            type="button"
-            onClick={() => {
-              setError("");
-              setStep(step - 1);
-            }}
-          >
-            Back
-          </button>
-        )}
-        {step > 0 && (
-          <div
-            className="welcome-progress"
-            aria-label={`Setup step ${step} of 3`}
-          >
-            {[1, 2, 3].map((s) => (
-              <i key={s} className={s <= step ? "filled" : ""} />
-            ))}
-          </div>
         )}
       </div>
     </section>
