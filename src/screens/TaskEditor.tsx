@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
 import { Link } from "react-router-dom";
-import { useApp } from "../app/store";
+import { canEdit, useApp } from "../app/store";
 import { Effort, Schedule, Task } from "../app/types";
 import { Dialog } from "../components/Dialog";
 import { EffortPips } from "../components/Shared";
@@ -22,7 +22,8 @@ export const TaskEditor = ({
   close: () => void;
 }) => {
   const { now } = useWorkspace();
-  const { data, saveTask, storageError } = useApp();
+  const { data, saveTask } = useApp();
+  const storageError = useApp((s) => !canEdit(s));
   const today = dayKey(now, data.preferences.dayStart);
   const [title, setTitle] = useState(task?.title ?? "");
   const [error, setError] = useState("");
@@ -44,14 +45,14 @@ export const TaskEditor = ({
   );
   const patch = (next: Partial<Schedule>) =>
     setSchedule((s) => ({ ...s, ...next }));
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
       setError("Give your task a name.");
       return;
     }
     if (storageError) return;
-    const saved = saveTask(
+    const saved = await saveTask(
       {
         title: title.trim(),
         notes: notes.trim(),
@@ -73,7 +74,10 @@ export const TaskEditor = ({
       task?.id,
     );
     if (saved) close();
-    else setError("Check the task name and schedule before saving.");
+    else
+      setError(
+        "Couldn’t save yet. Your draft is here; check the connection and try again.",
+      );
   };
   const history = task
     ? liveEvents(data.events)

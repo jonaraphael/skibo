@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { TaskPeriod } from "../app/types";
-import { useApp } from "../app/store";
+import { canEdit, useApp } from "../app/store";
 import { prettyDate, scheduleLabel } from "../lib/schedule/calendar";
 import { EffortPips } from "./Shared";
 import { useWorkspace } from "./Workspace";
@@ -23,7 +23,7 @@ export const TaskRow = ({
   const skip = useApp((s) => s.skip);
   const snooze = useApp((s) => s.snooze);
   const status = useApp((s) => s.setTaskStatus);
-  const storageError = useApp((s) => s.storageError);
+  const storageError = useApp((s) => !canEdit(s));
   const menu = useRef<HTMLDetailsElement>(null);
   const [menuAbove, setMenuAbove] = useState(false);
   const touch = useRef<{ x: number; y: number } | null>(null);

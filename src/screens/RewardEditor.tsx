@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { useApp } from "../app/store";
+import { canEdit, useApp } from "../app/store";
 import { Reward, RewardSize } from "../app/types";
 import { Dialog } from "../components/Dialog";
 import { REWARD_SUGGESTIONS } from "../lib/rewards/rewardPools";
@@ -11,24 +11,27 @@ export const RewardEditor = ({
   close: () => void;
 }) => {
   const save = useApp((s) => s.saveReward);
-  const error = useApp((s) => s.storageError);
+  const error = useApp((s) => !canEdit(s));
   const [errorText, setErrorText] = useState("");
   const [title, setTitle] = useState(reward?.title ?? "");
   const [size, setSize] = useState<RewardSize>(reward?.size ?? "small");
   const [query, setQuery] = useState("");
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
       setErrorText("Give your reward a name.");
       return;
     }
     if (error) return;
-    const saved = save(
+    const saved = await save(
       { title: title.trim(), size, active: reward?.active ?? true },
       reward?.id,
     );
     if (saved) close();
-    else setErrorText("Check this reward before saving.");
+    else
+      setErrorText(
+        "Couldn’t save yet. Your draft is here; check the connection and try again.",
+      );
   };
   return (
     <Dialog title={reward ? "Edit reward" : "New reward"} close={close}>

@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { useApp } from "../app/store";
+import { canEdit, useApp } from "../app/store";
 import { Dialog } from "./Dialog";
 import { Icon } from "./Icon";
 import { TaskHistory } from "./TaskHistory";
 export const RewardReveal = () => {
   const { reveal, dismissReveal, enjoy, data } = useApp();
+  const disabled = useApp((s) => !canEdit(s));
   const [settled, setSettled] = useState(false);
   useEffect(() => {
     if (!reveal) return;
@@ -77,7 +78,11 @@ export const RewardReveal = () => {
           </div>
         ))}
       <div className="two-col">
-        <button className="button secondary" onClick={() => enjoy(reveal.id)}>
+        <button
+          className="button secondary"
+          disabled={disabled}
+          onClick={() => enjoy(reveal.id)}
+        >
           Enjoy now <Icon name="check" size={17} />
         </button>
         <button className="button primary" onClick={dismissReveal}>
@@ -86,6 +91,7 @@ export const RewardReveal = () => {
       </div>
       <button
         className="text-link reveal-undo"
+        disabled={disabled}
         onClick={() => useApp.getState().undo(reveal.id)}
       >
         Undo

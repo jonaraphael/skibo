@@ -49,7 +49,18 @@ A notebook stores tasks, the reward menu, preferences, and an append-only action
 
 Use **Settings → Download backup** before clearing browser data or moving devices. Restore validates the complete file before offering to replace the notebook. Other tabs cannot silently overwrite a newer revision: a stale tab stops saving and offers an export of its current state. Use one tab for editing; reload other tabs to see the saved version.
 
-This version is a browser-local PWA. Reminders and automatic cross-device sync are future phases; neither is simulated. There is no account or server dependency.
+Skibo works entirely on this device by default. Optional Google sign-in syncs one notebook across devices using Firebase's no-cost Spark plan. Synced notebooks require internet for edits; the last saved account copy can be viewed offline. Saves check the cloud revision so another device cannot silently overwrite newer progress. Local notebooks retain offline editing, and JSON backups work in either mode.
+
+## Optional Firebase sync
+
+1. Create a Firebase project on **Spark** without linking a billing account. Register a web app, enable **Authentication → Google**, and add your site's hostname to Authentication's authorized domains.
+2. Create **Realtime Database** in locked mode. Publish this repository's `database.rules.json` using `npx firebase deploy --only database --project YOUR_PROJECT_ID` (after `npx firebase login`).
+3. Copy the web app's public configuration, including `databaseURL`, into `VITE_FIREBASE_CONFIG` as JSON. See `.env.example` for local development. For GitHub Pages, set the repository **Actions variable** `VITE_FIREBASE_CONFIG` and run the Pages deployment workflow. Never put service-account credentials in this value.
+4. Open **Settings → Sync with Google** on each device. The first device supplies the notebook if the account is new. An existing account opens its cloud notebook; the separate local notebook is retained and returns when you sign out. Existing notebooks are not merged automatically.
+
+The integration uses Google authentication and Realtime Database only, with no custom server or Cloud Functions. Spark's database limits apply across the project; sync can become unavailable if quotas are exceeded. Keep JSON backups. See [Firebase pricing](https://firebase.google.com/pricing).
+
+Run `npm run test:sync` for local Auth/Database emulator rules and two-device browser tests. It uses the isolated `demo-skibo` project and never contacts production Firebase. Java 21 and Playwright Chromium are recommended; ports 9470–9474 must be free. The test build enables emulators temporarily; run `npm run build` afterward to return to your normal configuration. Desktop and mobile Chromium are automated; verify real Google sign-in in iPhone Safari and an installed iPhone PWA before enabling the live integration.
 
 ## GitHub Pages
 

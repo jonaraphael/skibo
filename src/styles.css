@@ -1202,6 +1202,9 @@ textarea {
   min-height: 40px;
   padding: 8px;
 }
+.sync-account {
+  overflow-wrap: anywhere;
+}
 .setting-note {
   font-size: 10px;
   color: var(--muted);

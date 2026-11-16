@@ -13,7 +13,22 @@ import {
   parseNotebook,
   readBackup,
 } from "../lib/persistence/notebook";
-import { loadNotebook, saveNotebook } from "../lib/persistence/storage";
+import {
+  loadNotebook,
+  saveNotebook,
+  loadCloudCache,
+  saveCloudCache,
+} from "../lib/persistence/storage";
+import {
+  CloudConflict,
+  CloudRecord,
+  leaveAccount,
+  saveCloud,
+  signIn,
+  syncAvailable,
+  watchAuth,
+  watchCloud,
+} from "../lib/sync/firebase";
 import { completePeriod, undoEvent } from "../lib/tasks/actions";
 import { createCryptoRng } from "../lib/rewards/rng";
 import { addDays, dayKey, periodFor } from "../lib/schedule/calendar";
@@ -32,27 +47,133 @@ interface AppState {
   pending: number;
   toast: Toast | null;
   reveal: Completion | null;
+  syncAvailable: boolean;
+  syncUser: { uid: string; email: string | null } | null;
+  syncLoading: boolean;
+  syncConnected: boolean;
+  syncError: string | null;
+  authPending: boolean;
+  connectAccount: () => Promise<void>;
+  disconnectAccount: () => Promise<void>;
   initialize: () => Promise<void>;
-  change: (update: (data: Notebook) => Notebook) => boolean;
-  saveTask: (input: Omit<Task, "id" | "createdAt">, id?: string) => boolean;
-  setTaskStatus: (id: string, status: Task["status"]) => void;
-  complete: (period: TaskPeriod) => void;
-  skip: (period: TaskPeriod) => void;
-  snooze: (period: TaskPeriod) => void;
-  undo: (eventId: string) => void;
-  enjoy: (eventId: string) => void;
-  saveReward: (input: Omit<Reward, "id">, id?: string) => boolean;
-  preferences: (patch: Partial<Preferences>) => void;
-  importBackup: (json: string) => void;
+  change: (update: (data: Notebook) => Notebook) => Promise<boolean>;
+  saveTask: (
+    input: Omit<Task, "id" | "createdAt">,
+    id?: string,
+  ) => Promise<boolean>;
+  setTaskStatus: (id: string, status: Task["status"]) => Promise<void>;
+  complete: (period: TaskPeriod) => Promise<void>;
+  skip: (period: TaskPeriod) => Promise<void>;
+  snooze: (period: TaskPeriod) => Promise<void>;
+  undo: (eventId: string) => Promise<void>;
+  enjoy: (eventId: string) => Promise<void>;
+  saveReward: (input: Omit<Reward, "id">, id?: string) => Promise<boolean>;
+  preferences: (patch: Partial<Preferences>) => Promise<boolean>;
+  importBackup: (json: string) => Promise<boolean>;
   notify: (toast: Toast | null) => void;
   dismissReveal: () => void;
 }
 let initialization: Promise<void> | undefined;
 let writes: Promise<void> = Promise.resolve();
+let session = 0;
+let cloudRevision: number | null = null;
+let stopCloud: (() => void) | undefined;
+export const canEdit = (state: AppState) =>
+  state.loaded &&
+  !state.storageError &&
+  !state.syncLoading &&
+  !state.authPending &&
+  (!state.syncUser ||
+    (state.syncConnected && !state.syncError && state.pending === 0));
+export const saveStatus = (state: AppState) =>
+  state.storageError
+    ? "Backup needed"
+    : state.syncUser
+      ? state.syncLoading
+        ? "Connecting…"
+        : state.pending
+          ? "Saving…"
+          : state.syncError
+            ? "Sync needs attention"
+            : state.syncConnected
+              ? "Synced"
+              : "Offline—view only"
+      : state.pending
+        ? "Saving…"
+        : "Saved on this device";
 const errorMessage = (error: unknown) =>
   error instanceof Error
     ? error.message
     : "Storage isn't available. Enable browser storage, then reload.";
+const acceptCloud = (record: CloudRecord, uid: string, active: number) => {
+  if (
+    active !== session ||
+    (cloudRevision !== null && record.revision <= cloudRevision)
+  )
+    return;
+  const data = parseNotebook(JSON.parse(record.json));
+  cloudRevision = record.revision;
+  useApp.setState({
+    data,
+    syncLoading: false,
+    syncError: null,
+    toast: null,
+    reveal: null,
+  });
+  void saveCloudCache(uid, { data, revision: record.revision }).catch(() => {
+    if (active === session)
+      useApp
+        .getState()
+        .notify({
+          message:
+            "Saved online. This browser couldn't keep an offline copy; download a backup.",
+        });
+  });
+};
+const openAccount = async (user: AppState["syncUser"]) => {
+  const active = ++session;
+  stopCloud?.();
+  cloudRevision = null;
+  useApp.setState({
+    data: emptyNotebook(),
+    syncUser: user,
+    syncLoading: true,
+    syncConnected: false,
+    syncError: null,
+    storageError: null,
+    pending: 0,
+    toast: null,
+    reveal: null,
+  });
+  try {
+    const guest = await loadNotebook();
+    if (active !== session) return;
+    if (!user) {
+      useApp.setState({ data: guest, syncLoading: false });
+      return;
+    }
+    const cached = await loadCloudCache(user.uid);
+    if (active !== session) return;
+    if (cached) useApp.setState({ data: cached.data, syncLoading: false });
+    stopCloud = watchCloud(
+      user.uid,
+      cached?.data ?? guest,
+      (record) => acceptCloud(record, user.uid, active),
+      (online) => {
+        if (active === session) useApp.setState({ syncConnected: online });
+      },
+      (error) => {
+        if (active === session)
+          useApp.setState({
+            syncError: errorMessage(error),
+            syncConnected: false,
+          });
+      },
+    );
+  } catch (error) {
+    if (active === session) useApp.setState({ syncError: errorMessage(error) });
+  }
+};
 export const useApp = create<AppState>((set, get) => ({
   data: emptyNotebook(),
   loaded: false,
@@ -61,16 +182,57 @@ export const useApp = create<AppState>((set, get) => ({
   pending: 0,
   toast: null,
   reveal: null,
+  syncAvailable,
+  syncUser: null,
+  syncLoading: syncAvailable,
+  syncConnected: false,
+  syncError: null,
+  authPending: false,
+  connectAccount: async () => {
+    if (get().pending || get().authPending || get().syncLoading) return;
+    set({ authPending: true, syncError: null });
+    try {
+      await signIn();
+    } catch (error) {
+      set({ syncError: errorMessage(error) });
+    } finally {
+      set({ authPending: false });
+    }
+  },
+  disconnectAccount: async () => {
+    if (get().pending || get().authPending) return;
+    set({ authPending: true });
+    try {
+      await leaveAccount();
+    } catch (error) {
+      set({ syncError: errorMessage(error) });
+    } finally {
+      set({ authPending: false });
+    }
+  },
   initialize: () =>
     (initialization ??= loadNotebook()
       .then((data) => {
         set({ data, loaded: true });
+        if (syncAvailable) {
+          try {
+            watchAuth(
+              (user) => {
+                void openAccount(user);
+              },
+              (error) =>
+                set({ syncError: errorMessage(error), syncLoading: true }),
+            );
+          } catch (error) {
+            set({ syncError: errorMessage(error), syncLoading: true });
+          }
+        }
       })
       .catch((error) => {
         set({ loadError: errorMessage(error) });
       })),
-  change: (update) => {
-    if (!get().loaded || get().storageError) return false;
+  change: async (update) => {
+    if (!canEdit(get())) return false;
     const data = { ...update(get().data), revision: get().data.revision + 1 };
     try {
       parseNotebook(data);
@@ -80,21 +242,39 @@ export const useApp = create<AppState>((set, get) => ({
       });
       return false;
     }
-    set({ data, pending: get().pending + 1 });
-    writes = writes
-      .then(async () => {
-        if (get().storageError) throw new Error(get().storageError!);
-        await saveNotebook(data);
-      })
-      .catch((error) => {
-        set({ storageError: errorMessage(error) });
-      })
-      .finally(() => {
-        set({ pending: get().pending - 1 });
-      });
-    return true;
+    const active = session;
+    const user = get().syncUser;
+    if (user && cloudRevision === null) return false;
+    const expected = cloudRevision;
+    set({ pending: get().pending + 1, ...(user ? {} : { data }) });
+    try {
+      if (user) {
+        const record = await saveCloud(user.uid, expected!, data);
+        acceptCloud(record, user.uid, active);
+      } else {
+        const write = writes.then(async () => {
+          if (get().storageError) throw new Error(get().storageError!);
+          await saveNotebook(data);
+        });
+        writes = write.catch(() => {});
+        await write;
+      }
+      return active === session;
+    } catch (error) {
+      if (active === session) {
+        if (error instanceof CloudConflict && user) {
+          acceptCloud(error.record, user.uid, active);
+          get().notify({ message: error.message });
+        } else if (user) {
+          set({ syncError: errorMessage(error), syncConnected: false });
+        } else set({ storageError: errorMessage(error) });
+      }
+      return false;
+    } finally {
+      if (active === session) set({ pending: get().pending - 1 });
+    }
   },
-  saveTask: (input, id) => {
+  saveTask: async (input, id) => {
     const task: Task = {
       ...input,
       id: id ?? randomId(),
@@ -102,7 +282,7 @@ export const useApp = create<AppState>((set, get) => ({
         get().data.tasks.find((t) => t.id === id)?.createdAt ??
         new Date().toISOString(),
     };
-    const saved = get().change((d) => ({
+    const saved = await get().change((d) => ({
       ...d,
       tasks: id
         ? d.tasks.map((t) => (t.id === id ? task : t))
@@ -114,9 +294,9 @@ export const useApp = create<AppState>((set, get) => ({
     });
     return true;
   },
-  setTaskStatus: (id, status) => {
+  setTaskStatus: async (id, status) => {
     const previous = get().data.tasks.find((t) => t.id === id)?.status;
-    const changed = get().change((d) => ({
+    const changed = await get().change((d) => ({
       ...d,
       tasks: d.tasks.map((t) => (t.id === id ? { ...t, status } : t)),
     }));
@@ -128,9 +308,9 @@ export const useApp = create<AppState>((set, get) => ({
           : status === "paused"
             ? "Task paused."
             : "Task is active.",
-      undo: () => {
+      undo: async () => {
         if (!previous) return;
-        const restored = get().change((d) => ({
+        const restored = await get().change((d) => ({
           ...d,
           tasks: d.tasks.map((t) =>
             t.id === id ? { ...t, status: previous } : t,
@@ -140,7 +320,7 @@ export const useApp = create<AppState>((set, get) => ({
       },
     });
   },
-  complete: (period) => {
+  complete: async (period) => {
     if (get().reveal?.reward) return;
     const event = completePeriod(
       get().data,
@@ -150,14 +330,15 @@ export const useApp = create<AppState>((set, get) => ({
       randomId(),
     );
     if (!event || get().storageError) return;
-    if (!get().change((d) => ({ ...d, events: [...d.events, event] }))) return;
+    if (!(await get().change((d) => ({ ...d, events: [...d.events, event] }))))
+      return;
     set({ reveal: event });
     get().notify({
       message: event.reward ? "Done. Reward earned." : "Done. No reward.",
       undo: () => get().undo(event.id),
     });
   },
-  skip: (period) => {
+  skip: async (period) => {
     const d = get().data;
     const current = periodFor(period.task, d.events, new Date(), d.preferences);
     if (
@@ -174,14 +355,19 @@ export const useApp = create<AppState>((set, get) => ({
       period: period.key,
       at: new Date().toISOString(),
     };
-    if (!get().change((data) => ({ ...data, events: [...data.events, event] })))
+    if (
+      !(await get().change((data) => ({
+        ...data,
+        events: [...data.events, event],
+      })))
+    )
       return;
     get().notify({
       message: "Skipped this time. No roll taken.",
       undo: () => get().undo(event.id),
     });
   },
-  snooze: (period) => {
+  snooze: async (period) => {
     const now = new Date();
     const event: JournalEvent = {
       id: randomId(),
@@ -191,23 +377,25 @@ export const useApp = create<AppState>((set, get) => ({
       until: addDays(dayKey(now, get().data.preferences.dayStart), 1),
       at: now.toISOString(),
     };
-    if (!get().change((d) => ({ ...d, events: [...d.events, event] }))) return;
+    if (!(await get().change((d) => ({ ...d, events: [...d.events, event] }))))
+      return;
     get().notify({
       message: "Moved to tomorrow.",
       undo: () => get().undo(event.id),
     });
   },
-  undo: (target) => {
+  undo: async (target) => {
     const event = undoEvent(get().data, target, new Date(), randomId());
     if (!event) {
       get().notify({ message: "That action can no longer be undone." });
       return;
     }
-    if (!get().change((d) => ({ ...d, events: [...d.events, event] }))) return;
+    if (!(await get().change((d) => ({ ...d, events: [...d.events, event] }))))
+      return;
     set({ reveal: null });
     get().notify({ message: "Undone." });
   },
-  enjoy: (target) => {
+  enjoy: async (target) => {
     if (!trayRewards(get().data.events).some((e) => e.id === target)) return;
     const event: JournalEvent = {
       id: randomId(),
@@ -215,7 +403,8 @@ export const useApp = create<AppState>((set, get) => ({
       target,
       at: new Date().toISOString(),
     };
-    if (!get().change((d) => ({ ...d, events: [...d.events, event] }))) return;
+    if (!(await get().change((d) => ({ ...d, events: [...d.events, event] }))))
+      return;
     set({ reveal: null });
     get().notify({
       message: "Reward enjoyed.",
@@ -236,10 +425,12 @@ export const useApp = create<AppState>((set, get) => ({
       ...d,
       preferences: { ...d.preferences, ...patch },
     })),
-  importBackup: (json) => {
+  importBackup: async (json) => {
     const imported = readBackup(json);
-    if (!get().change((d) => ({ ...imported, revision: d.revision }))) return;
+    if (!(await get().change((d) => ({ ...imported, revision: d.revision }))))
+      return false;
     set({ reveal: null, toast: { message: "Your backup has been restored." } });
+    return true;
   },
   notify: (toast) => set({ toast }),
   dismissReveal: () => set({ reveal: null }),

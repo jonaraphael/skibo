@@ -1,0 +1,20 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "notebooks": {
+      "$uid": {
+        ".read": "auth !== null && auth.uid === $uid",
+        ".write": "auth !== null && auth.uid === $uid && newData.exists()",
+        ".validate": "newData.hasChildren(['revision', 'json']) && ((!data.exists() && newData.child('revision').val() === 0) || (data.exists() && newData.child('revision').val() === data.child('revision').val() + 1))",
+        "revision": {
+          ".validate": "newData.isNumber() && newData.val() % 1 === 0"
+        },
+        "json": {
+          ".validate": "newData.isString() && newData.val().length <= 2000000"
+        },
+        "$other": { ".validate": false }
+      }
+    }
+  }
+}
