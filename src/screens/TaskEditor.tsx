@@ -87,11 +87,8 @@ export const TaskEditor = ({
         .reverse()
     : [];
   return (
-    <Dialog
-      title={task ? "Edit your intention" : "A new intention"}
-      close={close}
-    >
-      <h2>{task ? "Make it work for you." : "What would you like to do?"}</h2>
+    <Dialog title={task ? "Edit task" : "New task"} close={close}>
+      <h2>{task ? task.title : "New task"}</h2>
       <form onSubmit={onSubmit} className="editor-form">
         <label className="field title-field">
           <span>Task name</span>
@@ -398,7 +395,7 @@ export const TaskEditor = ({
             ? "The next date starts from when you actually finish."
             : schedule.kind !== "once"
               ? "One open task at a time. Missed days won't pile up."
-              : "One completion, one chance at something good."}{" "}
+              : "Each completion has a 30% reward chance."}{" "}
           All times are local.
         </p>
         {error && (
@@ -418,7 +415,7 @@ export const TaskEditor = ({
         <details className="task-history">
           <summary>
             Task history ·{" "}
-            {history.length ? "recent activity" : "a fresh start"}
+            {history.length ? "recent activity" : "no activity yet"}
           </summary>
           {history.map((e) => (
             <div className="history-line" key={e.id}>

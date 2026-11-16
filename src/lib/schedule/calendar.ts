@@ -153,7 +153,7 @@ export const periodFor = (
 };
 export const scheduleLabel = (s: Schedule): string => {
   if (s.kind === "once")
-    return s.start ? prettyDate(s.start) : "Whenever you're ready";
+    return s.start ? prettyDate(s.start) : "Anytime";
   if (s.kind === "daily")
     return s.every === 1 ? "Every day" : `Every ${s.every} days`;
   if (s.kind === "weekly")

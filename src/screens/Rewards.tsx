@@ -107,33 +107,25 @@ export const Rewards = () => {
   return (
     <>
       <PageHeader
-        eyebrow="The good part"
         title={
           tab === "tray"
-            ? "You've earned a little good."
+            ? "Reward tray"
             : tab === "menu"
-              ? "Good things, chosen by you."
-              : "Every little step, remembered."
-        }
-        description={
-          tab === "tray"
-            ? "No expiry dates. No rush. These are yours to enjoy."
-            : tab === "menu"
-              ? "Fill your menu with things that make the effort feel worth it."
-              : "A record of showing up. And the good things along the way."
+              ? "Reward menu"
+              : "Record"
         }
       />
       <nav className="reward-tabs" aria-label="Rewards">
         <NavLink to="/rewards/tray">
-          Your tray <span>{tray.length}</span>
+          Tray <span>{tray.length}</span>
         </NavLink>
-        <NavLink to="/rewards/menu">The menu</NavLink>
-        <NavLink to="/rewards/record">Your record</NavLink>
+        <NavLink to="/rewards/menu">Menu</NavLink>
+        <NavLink to="/rewards/record">Record</NavLink>
       </nav>
       {tab === "tray" && (
         <>
           <div className="list-heading">
-            <h2>{showEnjoyed ? "Good things enjoyed" : "Waiting for you"}</h2>
+            <h2>{showEnjoyed ? "Enjoyed rewards" : "Waiting rewards"}</h2>
             <button
               className="text-link"
               onClick={() => setShowEnjoyed(!showEnjoyed)}
@@ -145,19 +137,14 @@ export const Rewards = () => {
           {!rows.length && (
             <EmptyState
               title={
-                showEnjoyed
-                  ? "Good things take their time."
-                  : "Your next good thing is out there."
+                showEnjoyed ? "No enjoyed rewards yet." : "No rewards waiting."
               }
             >
               {showEnjoyed
-                ? "Rewards you enjoy will be remembered here."
-                : "Finish an intention to take a chance. Each completion has a 30% chance of a reward when your menu has an eligible size."}
+                ? "Rewards you mark as enjoyed appear here."
+                : "Complete a task to draw for a reward. Each completion has a 30% chance of a reward when your menu has an eligible size."}
             </EmptyState>
           )}
-          <p className="quiet-note">
-            A reward is an invitation. You get to decide when to take it.
-          </p>
         </>
       )}
       {tab === "menu" && (
@@ -223,7 +210,7 @@ export const Rewards = () => {
           <section className="forecast panel">
             <div>
               <p className="eyebrow">At your recent pace</p>
-              <h2>A little look ahead.</h2>
+              <h2>Expected rewards per week.</h2>
               <p>
                 A fresh week at your last 7 days’ pace, with today's menu and
                 your weekly cap. Actual draws vary.
@@ -323,7 +310,7 @@ export const Rewards = () => {
             </p>
           </section>
           <div className="group-label">
-            <h3>What you've made happen</h3>
+            <h3>Completions</h3>
             <span>{filtered.length}</span>
           </div>
           <div className="activity-list">
@@ -334,7 +321,7 @@ export const Rewards = () => {
                 </span>
                 <div>
                   <strong>{e.taskTitle}</strong>
-                  <p>{e.reward ? e.reward.title : "A little progress made."}</p>
+                  <p>{e.reward ? e.reward.title : "No reward"}</p>
                 </div>
                 <time>
                   {prettyDate(
@@ -346,8 +333,8 @@ export const Rewards = () => {
             ))}
           </div>
           {!filtered.length && (
-            <EmptyState title="A fresh page.">
-              Your completions will build a record here, one step at a time.
+            <EmptyState title="No completions yet.">
+              Completed tasks and their reward outcomes appear here.
             </EmptyState>
           )}
         </>

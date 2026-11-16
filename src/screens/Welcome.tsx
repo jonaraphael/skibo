@@ -13,19 +13,19 @@ const tiers = [
     effort: "light",
     size: "small",
     label: "Small",
-    hint: "Light effort · a little nudge",
+    hint: "Light effort",
   },
   {
     effort: "solid",
     size: "medium",
     label: "Medium",
-    hint: "Solid effort · a real push",
+    hint: "Solid effort",
   },
   {
     effort: "heavy",
     size: "big",
     label: "Big",
-    hint: "Heavy effort · hard to get started",
+    hint: "Heavy effort",
   },
 ] as const;
 
@@ -139,28 +139,27 @@ export const Welcome = () => {
         <i className="floating-orb orb-three" />
       </div>
       <div className="welcome-content">
-        <p className="eyebrow">A little intention. A little good.</p>
+        <p className="eyebrow">Skibo</p>
         {step === 0 && (
           <>
             <h1>
-              Small steps.
+              Do what you want
               <br />
-              Something good.
+              to do more often.
             </h1>
             <p className="lede">
-              For the habits you want to build, but keep putting off. Choose
-              something to practice, give it a reason to feel good, and let a
-              little reward help you get started.
+              Choose a habit and rewards worth working toward. Complete the
+              task, draw for a reward, and see your history build.
             </p>
             <div className="welcome-facts">
               <span>
-                <Icon name="check" size={17} /> Your pace
+                <Icon name="check" size={17} /> Tasks
               </span>
               <span>
-                <Icon name="rewards" size={17} /> A menu ready for you
+                <Icon name="rewards" size={17} /> Rewards
               </span>
               <span>
-                <Icon name="leaf" size={17} /> Room to grow
+                <Icon name="leaf" size={17} /> History
               </span>
             </div>
             <button
@@ -168,7 +167,7 @@ export const Welcome = () => {
               disabled={!!storageError}
               onClick={() => setStep(1)}
             >
-              Let's begin <Icon name="arrow" size={18} />
+              Get started <Icon name="arrow" size={18} />
             </button>
             <Link to="/settings" className="text-link">
               I already have a backup
@@ -177,18 +176,14 @@ export const Welcome = () => {
         )}
         {step === 1 && (
           <>
-            <h1>
-              What do you
-              <br />
-              want to make a habit?
-            </h1>
+            <h1>Choose your first task.</h1>
             <p className="lede">
               Something you want to do regularly, but find hard to get yourself
               to do. Start with one; there will be room for the rest.
             </p>
             <form className="editor-form" onSubmit={submitTask}>
               <label className="field title-field">
-                <span>A habit I want to build</span>
+                <span>First task</span>
                 <input
                   autoFocus
                   maxLength={300}
@@ -221,28 +216,22 @@ export const Welcome = () => {
                 </p>
               )}
               <button className="button primary" disabled={!!storageError}>
-                Give it something to look forward to{" "}
-                <Icon name="arrow" size={18} />
+                Continue <Icon name="arrow" size={18} />
               </button>
             </form>
           </>
         )}
         {step === 2 && (
           <>
-            <h1>
-              Make the effort
-              <br />
-              feel worth it.
-            </h1>
+            <h1>Set the effort.</h1>
             <p className="lede">
               For <strong>“{firstTask?.title}”</strong>, what level of reward
               would help you get started? Judge the effort it takes you, even if
               the habit sounds small.
             </p>
             <p className="welcome-menu-note">
-              Your menu already has {data.rewards.length} rewards: everyday
-              upgrades, help with the load, and time that's yours again. Keep
-              the ideas you love, pause others, or add your own.
+              Your menu has {data.rewards.length} rewards. Keep the ones you
+              want, pause others, or add your own.
             </p>
             <form onSubmit={submitMenu} className="editor-form">
               <fieldset className="welcome-tiers">
@@ -322,21 +311,18 @@ export const Welcome = () => {
                 </p>
               )}
               <button className="button primary" disabled={!!storageError}>
-                Try it with this habit <Icon name="arrow" size={18} />
+                Continue <Icon name="arrow" size={18} />
               </button>
             </form>
           </>
         )}
         {step === 3 && (
           <>
-            <h1>
-              A little chance.
-              <br />A lovely surprise.
-            </h1>
+            <h1>Finish a task. Draw a reward.</h1>
             <p className="lede">
               Imagine you've just finished <strong>“{firstTask?.title}”</strong>
-              . Take a practice pull to see what could follow. Real wins wait in
-              your tray until you're ready to enjoy them.
+              . Try a practice draw. Earned rewards stay in your tray until you
+              use them.
             </p>
             <div className={`practice-card ${practice ? "revealed" : ""}`}>
               <p className="eyebrow">Practice pull · demo only</p>
@@ -344,9 +330,7 @@ export const Welcome = () => {
                 <>
                   <i className="reward-orb" />
                   <span className="reward-label">{practiceSize} reward</span>
-                  <h2>
-                    {practiceReward?.title ?? "Something good, just for you"}
-                  </h2>
+                  <h2>{practiceReward?.title ?? "Practice reward"}</h2>
                   <p>
                     This practice always wins. It doesn't count in your record
                     or tray.
@@ -362,11 +346,10 @@ export const Welcome = () => {
               )}
             </div>
             <div className="welcome-next">
-              <h2>What else comes to mind?</h2>
+              <h2>Add more tasks</h2>
               <p>
-                Write down as many habits you'd like to build as you can think
-                of. Add them one by one; you can adjust their timing and rewards
-                as you go.
+                Add the other habits you want to build. You can adjust their
+                schedules and effort later.
               </p>
             </div>
             <button
@@ -374,7 +357,7 @@ export const Welcome = () => {
               disabled={!!storageError}
               onClick={addHabits}
             >
-              Write down my habits <Icon name="arrow" size={18} />
+              Add more tasks <Icon name="arrow" size={18} />
             </button>
           </>
         )}

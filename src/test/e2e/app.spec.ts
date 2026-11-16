@@ -16,7 +16,7 @@ const nav = (page: Page, name: string) =>
             exact: true,
           }),
     )
-    .then((el) => el.getByRole("link", { name, exact: true }).click());
+    .then((el) => el.getByRole("link", { name, exact: false }).click());
 const noOverflow = async (page: Page) =>
   expect(
     await page.evaluate(
@@ -49,7 +49,7 @@ test.beforeEach(async ({ page }) => {
   await page.clock.setFixedTime(new Date("2026-11-15T12:00:00-05:00"));
 });
 
-test("first intention, reward, undo, saved roll, menu, record, and reload", async ({
+test("first task, reward, undo, saved roll, menu, record, and reload", async ({
   page,
 }, testInfo) => {
   const errors: string[] = [];
@@ -63,7 +63,7 @@ test("first intention, reward, undo, saved roll, menu, record, and reload", asyn
     };
   });
   await go(page);
-  await expect(page).toHaveTitle("Skibo — Little by little.");
+  await expect(page).toHaveTitle("Skibo — Tasks and rewards");
   await expect(
     page.getByRole("link", { name: "Skibo home", exact: true }),
   ).toBeVisible();
@@ -73,17 +73,15 @@ test("first intention, reward, undo, saved roll, menu, record, and reload", asyn
     short_name: "Skibo",
   });
   await expect(
-    page.getByRole("heading", { name: "Small steps. Something good." }),
+    page.getByRole("heading", { name: "Do what you want to do more often." }),
   ).toBeVisible();
   await page.screenshot({
     path: testInfo.outputPath("welcome.png"),
     fullPage: true,
   });
-  await page.getByRole("button", { name: "Let's begin" }).click();
-  await page.getByLabel("A habit I want to build").fill("Take a little walk");
-  await page
-    .getByRole("button", { name: "Give it something to look forward to" })
-    .click();
+  await page.getByRole("button", { name: "Get started" }).click();
+  await page.getByLabel("First task").fill("Take a little walk");
+  await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByText("“Take a little walk”")).toBeVisible();
   await page.getByRole("radio", { name: "Heavy effort, big rewards" }).check();
   await noOverflow(page);
@@ -95,7 +93,7 @@ test("first intention, reward, undo, saved roll, menu, record, and reload", asyn
   await page
     .getByLabel("Small reward", { exact: true })
     .fill("A perfect flat white");
-  await page.getByRole("button", { name: "Try it with this habit" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Try a practice pull" }).click();
   await expect(
     page.getByText("This practice always wins.", { exact: false }),
@@ -103,10 +101,10 @@ test("first intention, reward, undo, saved roll, menu, record, and reload", asyn
   await expect(
     page.getByRole("heading", { name: "New climbing shoes" }),
   ).toBeVisible();
-  await expect(page.getByText(/Write down as many habits/)).toBeVisible();
-  await page.getByRole("button", { name: "Write down my habits" }).click();
+  await expect(page.getByText(/Add the other habits/)).toBeVisible();
+  await page.getByRole("button", { name: "Add more tasks" }).click();
   await expect(page).toHaveURL(/#\/plan$/);
-  const habitSheet = page.getByRole("dialog", { name: "A new intention" });
+  const habitSheet = page.getByRole("dialog", { name: "New task" });
   await expect(habitSheet).toBeVisible();
   await habitSheet.getByLabel("Task name").fill("Water the indoor plants");
   await habitSheet
@@ -115,7 +113,7 @@ test("first intention, reward, undo, saved roll, menu, record, and reload", asyn
   await expect(habitSheet).toHaveCount(0);
   await nav(page, "Today");
   await expect(
-    page.getByRole("heading", { name: "A little progress, every day." }),
+    page.getByRole("heading", { name: "Sunday, November 15" }),
   ).toBeVisible();
   await expect(
     page.getByRole("article").filter({ hasText: "Take a little walk" }),
@@ -123,7 +121,7 @@ test("first intention, reward, undo, saved roll, menu, record, and reload", asyn
   await page
     .getByRole("button", { name: "Complete Take a little walk", exact: true })
     .click();
-  const reveal = page.getByRole("dialog", { name: "Something good, earned" });
+  const reveal = page.getByRole("dialog", { name: "Reward" });
   await expect(
     reveal.getByRole("heading", {
       name: "Fancy coffee at your favorite local café",
@@ -157,9 +155,10 @@ test("first intention, reward, undo, saved roll, menu, record, and reload", asyn
     }),
   ).toBeVisible();
   await reveal.getByRole("button", { name: "Keep in tray" }).click();
+  await nav(page, "Rewards");
   await page
-    .getByRole("link", { name: "Your record", exact: true })
-    .first()
+    .getByRole("navigation", { name: "Rewards", exact: true })
+    .getByRole("link", { name: "Record", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "Your cumulative record" }),
@@ -174,7 +173,7 @@ test("first intention, reward, undo, saved roll, menu, record, and reload", asyn
   });
   await page
     .getByRole("navigation", { name: "Rewards", exact: true })
-    .getByRole("link", { name: "Your tray" })
+    .getByRole("link", { name: "Tray" })
     .click();
   await page.screenshot({
     path: testInfo.outputPath("tray.png"),
@@ -182,7 +181,7 @@ test("first intention, reward, undo, saved roll, menu, record, and reload", asyn
   });
   await page.getByRole("button", { name: "Enjoy", exact: true }).click();
   await expect(
-    page.getByText("Your next good thing is out there.", { exact: true }),
+    page.getByText("No rewards waiting.", { exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await expect(
@@ -192,7 +191,7 @@ test("first intention, reward, undo, saved roll, menu, record, and reload", asyn
   ).toBeVisible();
   await page
     .getByRole("navigation", { name: "Rewards", exact: true })
-    .getByRole("link", { name: "The menu" })
+    .getByRole("link", { name: "Menu" })
     .click();
   await expect(page.locator(".menu-card")).toHaveCount(178);
   await expect(
@@ -201,10 +200,13 @@ test("first intention, reward, undo, saved roll, menu, record, and reload", asyn
   await page.getByRole("button", { name: "Add reward", exact: true }).click();
   await page.getByLabel("Reward name").fill("An afternoon at the museum");
   await page
-    .getByRole("dialog", { name: "Something to look forward to" })
+    .getByRole("dialog", { name: "New reward" })
     .getByRole("button", { name: "big", exact: true })
     .click();
-  await page.getByRole("button", { name: "Add to my menu" }).click();
+  await page
+    .getByRole("dialog", { name: "New reward" })
+    .getByRole("button", { name: "Add reward" })
+    .click();
   await expect(
     page.getByRole("heading", { name: "An afternoon at the museum" }),
   ).toBeVisible();
@@ -249,7 +251,7 @@ test("plan, custom schedules, pause, archive, undo and file backup", async ({
     .filter({ visible: true })
     .first()
     .click();
-  const sheet = page.getByRole("dialog", { name: "A new intention" });
+  const sheet = page.getByRole("dialog", { name: "New task" });
   await sheet.getByLabel("Task name").fill("Water the plants");
   await sheet.getByRole("button", { name: "After done", exact: true }).click();
   await sheet.getByLabel("Every", { exact: true }).fill("3");
@@ -266,9 +268,7 @@ test("plan, custom schedules, pause, archive, undo and file backup", async ({
       .first(),
   ).toBeVisible();
   await nav(page, "Plan");
-  await expect(
-    page.getByRole("heading", { name: "Give your week some shape." }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Plan" })).toBeVisible();
   await noOverflow(page);
   await page.screenshot({
     path: testInfo.outputPath("plan.png"),
@@ -279,7 +279,7 @@ test("plan, custom schedules, pause, archive, undo and file backup", async ({
   await page.getByLabel("Actions for Water the plants").click();
   await page.getByRole("button", { name: "Pause task", exact: true }).click();
   await expect(
-    page.getByText("No intentions found.", { exact: true }),
+    page.getByText("No tasks found.", { exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "paused", exact: true }).click();
   await expect(
@@ -393,9 +393,10 @@ test("snooze and skip are reversible without consuming a reward roll", async ({
   await expect(complete).toHaveCount(0);
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await expect(complete).toBeVisible();
+  await nav(page, "Rewards");
   await page
-    .getByRole("link", { name: "Your record", exact: true })
-    .first()
+    .getByRole("navigation", { name: "Rewards", exact: true })
+    .getByRole("link", { name: "Record", exact: true })
     .click();
   await expect(
     page.getByText("0 of 0 completions", { exact: true }),
@@ -495,7 +496,7 @@ test("hidden invalid schedule fields and partial years cannot corrupt the saved 
     .filter({ visible: true })
     .first()
     .click();
-  const sheet = page.getByRole("dialog", { name: "A new intention" });
+  const sheet = page.getByRole("dialog", { name: "New task" });
   await sheet.getByLabel("Task name").fill("   ");
   await sheet.getByRole("button", { name: "Add task", exact: true }).click();
   await expect(sheet.getByRole("alert")).toBeInViewport();
@@ -515,7 +516,7 @@ test("hidden invalid schedule fields and partial years cannot corrupt the saved 
   await page.reload();
   await expect(page.getByText("A safe one-off", { exact: true })).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Your notebook needs a moment." }),
+    page.getByRole("heading", { name: "Unable to open your notebook." }),
   ).toHaveCount(0);
 });
 
@@ -530,7 +531,7 @@ test("exports raw stored data if an existing notebook cannot open", async ({
   await seed(page, data);
   await go(page);
   await expect(
-    page.getByRole("heading", { name: "Your notebook needs a moment." }),
+    page.getByRole("heading", { name: "Unable to open your notebook." }),
   ).toBeVisible();
   const downloading = page.waitForEvent("download");
   await page
@@ -540,4 +541,128 @@ test("exports raw stored data if an existing notebook cannot open", async ({
   const path = testInfo.outputPath("raw-notebook.json");
   await download.saveAs(path);
   expect(JSON.parse(await readFile(path, "utf8"))).toEqual(data);
+});
+
+test("evidence strips update with rewards and undo, survive reload, and stay readable in Plan", async ({
+  page,
+}, testInfo) => {
+  const data = emptyNotebook();
+  data.onboarded = true;
+  data.preferences.theme = "light";
+  data.preferences.reduceMotion = true;
+  const writing = {
+    ...task({ start: "2026-11-02" }),
+    title: "Write 500 words",
+    effort: "solid" as const,
+  };
+  const once = {
+    ...task({ kind: "once", start: null }),
+    id: "expenses",
+    title: "File expenses",
+  };
+  const after = {
+    ...task({ kind: "after", start: "2026-11-15", every: 3 }),
+    id: "plants",
+    title: "Water the plants",
+  };
+  data.tasks = [writing, once, after];
+  for (let day = 2; day <= 14; day++) {
+    if ([5, 9, 11].includes(day)) continue;
+    const date = `2026-11-${String(day).padStart(2, "0")}`;
+    data.events.push({
+      id: `write-${day}`,
+      type: "completed",
+      taskId: writing.id,
+      taskTitle: writing.title,
+      period: `${writing.id}:${date}:`,
+      at: `${date}T17:00:00.000Z`,
+      roll: day === 14 ? 0.1 : 0.9,
+      reward:
+        day === 14
+          ? {
+              id: "reward",
+              title: "Record store visit",
+              size: "medium",
+              active: true,
+            }
+          : null,
+    });
+  }
+  await seed(page, data);
+  await page.addInitScript(() => {
+    Crypto.prototype.getRandomValues = function <
+      T extends ArrayBufferView | null,
+    >(array: T): T {
+      if (array) new Uint8Array(array.buffer).fill(0);
+      return array;
+    };
+  });
+  await go(page);
+  const row = page.getByRole("article").filter({ hasText: writing.title });
+  await expect(row.locator(".history-cell")).toHaveCount(14);
+  await expect(
+    row.getByRole("img", {
+      name: /^10 of the last 14 scheduled days completed/,
+    }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("article")
+      .filter({ hasText: once.title })
+      .locator(".task-history-strip"),
+  ).toHaveCount(0);
+  await expect(
+    page
+      .getByRole("article")
+      .filter({ hasText: after.title })
+      .locator(".task-history-strip"),
+  ).toHaveCount(0);
+  await expect(page.locator(".tray-preview")).toContainText(
+    "Record store visit",
+  );
+  await noOverflow(page);
+  await page.screenshot({
+    path: testInfo.outputPath("evidence-today.png"),
+    fullPage: true,
+  });
+  await row
+    .getByRole("button", { name: `Complete ${writing.title}`, exact: true })
+    .click();
+  const reveal = page.getByRole("dialog", { name: "Reward", exact: true });
+  await expect(
+    reveal.getByRole("img", {
+      name: /^11 of the last 14 scheduled days completed/,
+    }),
+  ).toBeVisible();
+  await expect(row.locator(".task-meta")).not.toContainText("Every day");
+  await noOverflow(page);
+  await page.screenshot({ path: testInfo.outputPath("evidence-reward.png") });
+  await reveal.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(
+    row.getByRole("img", {
+      name: /^10 of the last 14 scheduled days completed/,
+    }),
+  ).toBeVisible();
+  await expect(page.locator(".save-status")).toHaveText("Saved on this device");
+  await page.reload();
+  await expect(
+    row.getByRole("img", {
+      name: /^10 of the last 14 scheduled days completed/,
+    }),
+  ).toBeVisible();
+  await nav(page, "Plan");
+  await page.getByRole("button", { name: "All tasks", exact: true }).click();
+  await expect(
+    row.getByRole("img", {
+      name: /^10 of the last 14 scheduled days completed/,
+    }),
+  ).toBeVisible();
+  await noOverflow(page);
+  await page.screenshot({
+    path: testInfo.outputPath("evidence-plan.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 320, height: 700 });
+  await noOverflow(page);
+  await expect(row.locator(".history-count")).toBeInViewport();
 });
