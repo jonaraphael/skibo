@@ -14,8 +14,8 @@ export const Icon = ({ name, size = 20 }: { name: string; size?: number }) => {
     ),
     rewards: (
       <>
-        <path d="M3 14h18l-2 6H5z" />
-        <circle cx="12" cy="7" r="3" />
+        <path d="M8 6.5A4 4 0 1 1 16 6.5A4 4 0 1 1 18.46 14.1A4 4 0 1 1 12 18.8A4 4 0 1 1 5.54 14.1A4 4 0 1 1 8 6.5Z" />
+        <circle cx="12" cy="11.9" r="1.9" />
       </>
     ),
     menu: (
@@ -66,11 +66,6 @@ export const Icon = ({ name, size = 20 }: { name: string; size?: number }) => {
       <>
         <circle cx="10.5" cy="10.5" r="6.5" />
         <path d="m16 16 5 5" />
-      </>
-    ),
-    spark: (
-      <>
-        <path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5z" />
       </>
     ),
   };

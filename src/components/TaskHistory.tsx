@@ -28,7 +28,7 @@ export const TaskHistory = ({ task }: { task: Task }) => {
       className="task-history-strip"
       role="img"
       aria-label={`${summary}. Oldest to newest. ${days.map((d) => `${prettyDate(d.date)}: ${labels[d.state]}`).join(". ")}`}
-      title={`${summary}. Oldest to newest. Green: completed. Amber: reward. Outline: open. Empty: no completion.`}
+      title={`${summary}. Oldest to newest. Leaf: completed. Flower: reward. Outline: open. Bare stem: no completion.`}
     >
       <span className="history-cells" aria-hidden="true">
         {days.map((d) => (

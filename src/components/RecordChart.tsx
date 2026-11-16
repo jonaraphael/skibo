@@ -1,4 +1,5 @@
 import { Completion } from "../app/types";
+import { FLOWER_PATH } from "./Marks";
 export const RecordChart = ({
   events,
   compact = false,
@@ -32,7 +33,7 @@ export const RecordChart = ({
       <svg
         viewBox={`0 0 ${width} ${height}`}
         role="img"
-        aria-label={`Cumulative record: ${sorted.length} completions, ${paid} rewards. Amber marks show rewards.`}
+        aria-label={`Cumulative record: ${sorted.length} completions, ${paid} rewards. Flowers mark rewards.`}
       >
         {[0, 1, 2, 3].map((n) => (
           <line
@@ -48,11 +49,10 @@ export const RecordChart = ({
         {sorted.map(
           (e, i) =>
             e.reward && (
-              <circle
+              <path
                 key={e.id}
-                cx={x(i)}
-                cy={y(i)}
-                r={7}
+                d={FLOWER_PATH}
+                transform={`translate(${x(i) - 10.8} ${y(i) - 10.8}) scale(0.9)`}
                 className="chart-reward"
               />
             ),

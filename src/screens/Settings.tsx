@@ -264,7 +264,7 @@ export const Settings = () => {
         <section className="settings-panel about-panel">
           <Icon name="leaf" size={30} />
           <h2>Skibo</h2>
-          <p>Tasks, rewards, and a record of what you've done.</p>
+          <p>A leaf for each day done. A flower for each reward.</p>
         </section>
       </div>
       {restore && (

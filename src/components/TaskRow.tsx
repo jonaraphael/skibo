@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { TaskPeriod } from "../app/types";
 import { canEdit, useApp } from "../app/store";
 import { prettyDate, scheduleLabel } from "../lib/schedule/calendar";
-import { EffortPips } from "./Shared";
+import { Dotted, EffortPips } from "./Shared";
 import { useWorkspace } from "./Workspace";
 import { Icon } from "./Icon";
 import { completions } from "../lib/rewards/engine";
@@ -37,12 +37,17 @@ export const TaskRow = ({
     bucket !== "done" &&
     bucket !== "later";
   const meta = management
-    ? `${scheduleLabel(task.schedule)}${task.status !== "active" ? ` · ${task.status}` : ""}`
+    ? [
+        scheduleLabel(task.schedule),
+        ...(task.status !== "active" ? [task.status] : []),
+      ]
     : bucket === "late" && period.date
-      ? `Due ${prettyDate(period.date, { weekday: "short", month: "short", day: "numeric" })}`
+      ? [
+          `Due ${prettyDate(period.date, { weekday: "short", month: "short", day: "numeric" })}`,
+        ]
       : period.time
-        ? `By ${period.time} · ${scheduleLabel(task.schedule)}`
-        : scheduleLabel(task.schedule);
+        ? [`By ${period.time}`, scheduleLabel(task.schedule)]
+        : [scheduleLabel(task.schedule)];
   const act = (fn: () => void) => {
     menu.current?.querySelector("summary")?.focus();
     fn();
@@ -118,23 +123,24 @@ export const TaskRow = ({
           className={`task-meta ${bucket === "late" && !management ? "late-text" : ""}`}
         >
           {bucket === "done" && !management && lastCompletion ? (
-            <>
-              {new Date(lastCompletion.at).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}{" "}
-              ·{" "}
-              {lastCompletion.reward ? (
-                <span className="task-outcome">
-                  <i className="reward-dot" />
-                  {lastCompletion.reward.title}
-                </span>
-              ) : (
-                "no reward"
-              )}
-            </>
+            <Dotted
+              items={[
+                new Date(lastCompletion.at).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+                lastCompletion.reward ? (
+                  <span className="task-outcome">
+                    <i className="reward-dot" />
+                    {lastCompletion.reward.title}
+                  </span>
+                ) : (
+                  "no reward"
+                ),
+              ]}
+            />
           ) : (
-            meta
+            <Dotted items={meta} />
           )}
         </span>
         {task.notes && <span className="task-note">{task.notes}</span>}

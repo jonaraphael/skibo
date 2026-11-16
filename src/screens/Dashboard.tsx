@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { useState } from "react";
 import { useApp } from "../app/store";
 import { TaskPeriod } from "../app/types";
-import { PageHeader, EmptyState } from "../components/Shared";
+import { Dotted, PageHeader, EmptyState } from "../components/Shared";
 import { Icon } from "../components/Icon";
 import { TaskRow } from "../components/TaskRow";
 import { useWorkspace } from "../components/Workspace";
@@ -45,7 +45,15 @@ export const Dashboard = () => {
           month: "long",
           day: "numeric",
         })}
-        description={`${done.length} done · ${paid} reward${paid === 1 ? "" : "s"} · ${open.length} open`}
+        description={
+          <Dotted
+            items={[
+              `${done.length} done`,
+              `${paid} reward${paid === 1 ? "" : "s"}`,
+              `${open.length} open`,
+            ]}
+          />
+        }
       >
         <button
           className="button primary desktop-add"
@@ -134,13 +142,23 @@ export const Dashboard = () => {
                     <li key={e.id}>
                       <strong>{e.reward!.title}</strong>
                       <span>
-                        {e.reward!.size} · {e.taskTitle} ·{" "}
-                        {dayKey(new Date(e.at), data.preferences.dayStart) ===
-                        today
-                          ? "today"
-                          : prettyDate(
-                              dayKey(new Date(e.at), data.preferences.dayStart),
-                            )}
+                        <Dotted
+                          items={[
+                            e.reward!.size,
+                            e.taskTitle,
+                            dayKey(
+                              new Date(e.at),
+                              data.preferences.dayStart,
+                            ) === today
+                              ? "today"
+                              : prettyDate(
+                                  dayKey(
+                                    new Date(e.at),
+                                    data.preferences.dayStart,
+                                  ),
+                                ),
+                          ]}
+                        />
                       </span>
                     </li>
                   ))}
@@ -154,9 +172,9 @@ export const Dashboard = () => {
               </>
             ) : (
               <>
-                <h2>No rewards waiting.</h2>
+                <h2>Nothing waiting.</h2>
                 <p>
-                  Each completion has a 30% chance of earning a reward from your
+                  Each completion has a 3 in 10 chance of a reward from your
                   menu.
                 </p>
                 <Link className="text-link" to="/rewards/menu">

@@ -75,6 +75,27 @@ test("first task, reward, undo, saved roll, menu, record, and reload", async ({
   await expect(
     page.getByRole("heading", { name: "Do what you want to do more often." }),
   ).toBeVisible();
+  // The headline holds its two phrases, one per line, on phone and desktop.
+  expect(
+    await page
+      .getByRole("heading", { name: "Do what you want to do more often." })
+      .evaluate((h) =>
+        [...h.querySelectorAll(".phrase")].map((phrase) => {
+          const box = phrase.getBoundingClientRect();
+          return {
+            top: Math.round(box.top),
+            lines: Math.round(
+              box.height / parseFloat(getComputedStyle(h).lineHeight),
+            ),
+          };
+        }),
+      ),
+  ).toEqual([
+    { top: expect.any(Number), lines: 1 },
+    { top: expect.any(Number), lines: 1 },
+  ]);
+  expect(await page.locator(".welcome-art .sprig-leaf").count()).toBe(10);
+  expect(await page.locator(".welcome-art .sprig-flower").count()).toBe(2);
   await page.screenshot({
     path: testInfo.outputPath("welcome.png"),
     fullPage: true,

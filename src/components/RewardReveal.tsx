@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { canEdit, useApp } from "../app/store";
 import { Dialog } from "./Dialog";
 import { Icon } from "./Icon";
+import { Dotted } from "./Shared";
 import { TaskHistory } from "./TaskHistory";
 export const RewardReveal = () => {
   const { reveal, dismissReveal, enjoy, data } = useApp();
@@ -64,11 +65,15 @@ export const RewardReveal = () => {
       <p className="reward-label">{reveal.reward.size}</p>
       <h2>{reveal.reward.title}</h2>
       <p className="lede">
-        {reveal.taskTitle} ·{" "}
-        {new Date(reveal.at).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}
+        <Dotted
+          items={[
+            reveal.taskTitle,
+            new Date(reveal.at).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          ]}
+        />
       </p>
       {data.tasks
         .filter((t) => t.id === reveal.taskId)
