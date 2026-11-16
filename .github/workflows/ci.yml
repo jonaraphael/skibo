@@ -1,4 +1,4 @@
-name: Verify SkinnerBox
+name: Verify Skibo
 on:
   pull_request:
   push:

@@ -10,7 +10,7 @@ export const downloadBackup = (json: string) => {
   );
   const a = document.createElement("a");
   a.href = url;
-  a.download = `skinnerbox-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `skibo-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
@@ -204,14 +204,14 @@ export const Settings = () => {
           )}
           <p className="setting-note">
             Includes tasks, your menu, every recorded action, and preferences.
-            Backups from the original SkinnerBox are supported.
+            Backups from earlier versions are supported.
           </p>
         </section>
         <section className="settings-panel about-panel">
           <Icon name="leaf" size={30} />
           <h2>Little by little.</h2>
           <p>
-            SkinnerBox pairs small intentions with a chance at something good.
+            Skibo pairs small intentions with a chance at something good.
             No streak penalties. No lost progress. Just a reason to come back.
           </p>
           <p className="eyebrow">Made for a human pace.</p>
