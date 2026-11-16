@@ -22,9 +22,7 @@ const database = (): Promise<IDBDatabase> =>
     request.onblocked = () => {
       connection = undefined;
       reject(
-        new Error(
-          "Close other Skibo tabs, then reload to open your notebook.",
-        ),
+        new Error("Close other Skibo tabs, then reload to open your notebook."),
       );
     };
   }));
@@ -95,4 +93,52 @@ export const readStoredData = async (): Promise<string> => {
   });
   if (root !== undefined) return JSON.stringify(root, null, 2);
   throw new Error("No stored notebook could be read in this browser.");
+};
+
+export interface CloudCache {
+  revision: number;
+  data: Notebook;
+}
+export const loadCloudCache = async (
+  uid: string,
+): Promise<CloudCache | null> => {
+  const db = await database();
+  return new Promise((resolve, reject) => {
+    const request = db
+      .transaction("notebook", "readonly")
+      .objectStore("notebook")
+      .get(`account:${uid}`);
+    request.onsuccess = () => {
+      try {
+        const cached = request.result as CloudCache | undefined;
+        resolve(
+          cached
+            ? { revision: cached.revision, data: parseNotebook(cached.data) }
+            : null,
+        );
+      } catch (error) {
+        reject(error);
+      }
+    };
+    request.onerror = () => reject(request.error);
+  });
+};
+export const saveCloudCache = async (
+  uid: string,
+  cached: CloudCache,
+): Promise<void> => {
+  const db = await database();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("notebook", "readwrite");
+    const store = tx.objectStore("notebook");
+    const request = store.get(`account:${uid}`);
+    request.onsuccess = () => {
+      if (!request.result || request.result.revision <= cached.revision)
+        store.put(cached, `account:${uid}`);
+    };
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () =>
+      reject(tx.error ?? new Error("The offline copy could not be saved."));
+  });
 };

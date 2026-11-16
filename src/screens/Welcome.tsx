@@ -2,7 +2,7 @@ import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Effort, RewardSize, Schedule } from "../app/types";
 import { rewardExamples } from "../lib/rewards/rewardPools";
-import { randomId, useApp } from "../app/store";
+import { canEdit, randomId, useApp } from "../app/store";
 import { Icon } from "../components/Icon";
 import { useWorkspace } from "../components/Workspace";
 import { dayKey, localDate } from "../lib/schedule/calendar";
@@ -30,7 +30,8 @@ const tiers = [
 ] as const;
 
 export const Welcome = () => {
-  const { data, saveTask, change, notify, storageError } = useApp();
+  const { data, saveTask, change, notify } = useApp();
+  const storageError = useApp((s) => !canEdit(s));
   const { openTask } = useWorkspace();
   const navigate = useNavigate();
   const firstTask = data.tasks[0];
@@ -54,7 +55,7 @@ export const Welcome = () => {
           names[tiers.findIndex((tier) => tier.effort === effort)].trim(),
     ) ?? rewardExamples(practiceSize, data.rewards)[0];
 
-  const submitTask = (e: FormEvent) => {
+  const submitTask = async (e: FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
       setError("Write down one habit you'd like to build.");
@@ -62,7 +63,7 @@ export const Welcome = () => {
     }
     if (storageError) return;
     const today = dayKey(new Date(), data.preferences.dayStart);
-    const saved = saveTask(
+    const saved = await saveTask(
       {
         title: title.trim(),
         notes: firstTask?.notes ?? "",
@@ -88,7 +89,7 @@ export const Welcome = () => {
       setStep(2);
     }
   };
-  const submitMenu = (e: FormEvent) => {
+  const submitMenu = async (e: FormEvent) => {
     e.preventDefault();
     if (storageError || !firstTask) return;
     if (names.some((name) => name.length > 0 && !name.trim())) {
@@ -102,7 +103,7 @@ export const Welcome = () => {
         ? [{ id: randomId(), title: name, size: tier.size, active: true }]
         : [];
     });
-    const saved = change((d) => ({
+    const saved = await change((d) => ({
       ...d,
       tasks: d.tasks.map((task) =>
         task.id === firstTask.id ? { ...task, effort } : task,
@@ -115,8 +116,8 @@ export const Welcome = () => {
       setStep(3);
     }
   };
-  const addHabits = () => {
-    if (!change((d) => ({ ...d, onboarded: true }))) return;
+  const addHabits = async () => {
+    if (!(await change((d) => ({ ...d, onboarded: true })))) return;
     navigate("/plan");
     openTask();
   };

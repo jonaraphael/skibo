@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, useParams } from "react-router-dom";
-import { useApp } from "../app/store";
+import { canEdit, useApp } from "../app/store";
 import { Completion, Effort, RewardSize } from "../app/types";
 import { EmptyState, PageHeader } from "../components/Shared";
 import { Icon } from "../components/Icon";
@@ -22,7 +22,8 @@ import {
 
 export const Rewards = () => {
   const { tab = "tray" } = useParams();
-  const { data, enjoy, saveReward, storageError } = useApp();
+  const { data, enjoy, saveReward } = useApp();
+  const storageError = useApp((s) => !canEdit(s));
   const { openReward, now } = useWorkspace();
   const tray = trayRewards(data.events);
   const [size, setSize] = useState("all");

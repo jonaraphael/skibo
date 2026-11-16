@@ -11,7 +11,7 @@ import { Welcome } from "../screens/Welcome";
 import { downloadBackup } from "../screens/Settings";
 import { trayRewards } from "../lib/rewards/engine";
 import { AppRoutes } from "./routes";
-import { useApp } from "./store";
+import { canEdit, saveStatus, useApp } from "./store";
 import { Reward, Task } from "./types";
 
 const navigation = [
@@ -26,6 +26,10 @@ export const App = () => {
   const [task, setTask] = useState<Task | null | undefined>();
   const [recoveryError, setRecoveryError] = useState("");
   const [reward, setReward] = useState<Reward | null | undefined>();
+  useEffect(() => {
+    setTask(undefined);
+    setReward(undefined);
+  }, [state.syncUser?.uid]);
   useEffect(() => {
     void state.initialize();
   }, [state.initialize]);
@@ -108,8 +112,36 @@ export const App = () => {
         <Icon name="leaf" size={32} /> Opening Skibo…
       </div>
     );
+  if (state.syncLoading)
+    return (
+      <div className="storage-gate" role="status">
+        <Icon name="leaf" size={32} /> Opening your synced notebook…
+        {state.syncError && <p role="alert">{state.syncError}</p>}
+        <p>
+          Connecting needs internet. Your separate local notebook is kept on
+          this device.
+        </p>
+        <button
+          className="button secondary"
+          disabled={state.pending > 0}
+          onClick={() => window.location.reload()}
+        >
+          Try again
+        </button>
+        {state.syncUser && (
+          <button
+            className="button secondary"
+            disabled={state.pending > 0 || state.authPending}
+            onClick={state.disconnectAccount}
+          >
+            Sign out
+          </button>
+        )}
+      </div>
+    );
   return (
     <WorkspaceContext.Provider
+      key={state.syncUser?.uid ?? "local"}
       value={{
         openTask: (t) => setTask(t ?? null),
         openReward: (r) => setReward(r ?? null),
@@ -163,11 +195,7 @@ export const App = () => {
                 </NavLink>
                 <span className="save-status" role="status">
                   <i className={state.storageError ? "failed" : ""} />
-                  {state.storageError
-                    ? "Backup needed"
-                    : state.pending
-                      ? "Saving…"
-                      : "Saved on this device"}
+                  {saveStatus(state)}
                 </span>
               </div>
             </>
@@ -215,6 +243,26 @@ export const App = () => {
               </button>
             </div>
           )}
+          {state.syncUser && (!state.syncConnected || state.syncError) && (
+            <div className="storage-error" role="status">
+              <strong>
+                {state.syncError ? "Sync needs attention" : "Offline—view only"}
+              </strong>
+              <span>
+                {state.syncError ??
+                  "Reconnect to edit your notebook. Your last saved copy is here."}
+              </span>
+              {state.syncError && (
+                <button
+                  className="button secondary"
+                  disabled={state.pending > 0}
+                  onClick={() => window.location.reload()}
+                >
+                  Retry sync
+                </button>
+              )}
+            </div>
+          )}
           <main id="main" tabIndex={-1}>
             {onboarding ? <Welcome /> : <AppRoutes />}
           </main>
@@ -245,7 +293,7 @@ export const App = () => {
             <button
               className="mobile-fab"
               aria-label="Add a task"
-              disabled={!!state.storageError}
+              disabled={!canEdit(state)}
               onClick={() => setTask(null)}
             >
               <Icon name="plus" size={24} />

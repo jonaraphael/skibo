@@ -31,4 +31,4 @@ Unit tests cover schedules, probability distributions, menu eligibility, caps, u
 
 ## Later phases
 
-Reminders require a separate delivery architecture. Automatic sync requires an identity and conflict model. Both remain outside this browser-local release. Schedules follow the device timezone. File backups provide deliberate movement between devices.
+Reminders require a separate delivery architecture. Optional Firebase Spark sync uses Google identity, one notebook per account, and revision-checked saves. Synced notebooks require internet for editing and retain an account-specific offline viewing copy. Local notebooks keep offline editing. Schedules follow the device timezone, and file backups work in either mode. See the README for setup and verification.

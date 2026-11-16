@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { useApp } from "../app/store";
+import { canEdit, useApp } from "../app/store";
 import { Icon } from "./Icon";
 export const Toast = () => {
   const toast = useApp((s) => s.toast);
+  const disabled = useApp((s) => !canEdit(s));
   const notify = useApp((s) => s.notify);
   const box = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState(false);
@@ -35,7 +36,11 @@ export const Toast = () => {
     >
       <Icon name="check" size={18} />
       <span>{toast.message}</span>
-      {toast.undo && <button onClick={toast.undo}>Undo</button>}
+      {toast.undo && (
+        <button disabled={disabled} onClick={toast.undo}>
+          Undo
+        </button>
+      )}
       <button
         className="toast-close"
         aria-label="Dismiss notification"

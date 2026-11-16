@@ -10,6 +10,8 @@ dist/
 test-results/
 playwright-report/
 coverage/
+.firebase/
+*-debug.log
 
 # Logs
 npm-debug.log*

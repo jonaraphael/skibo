@@ -2,10 +2,11 @@ import { defineConfig, devices } from "@playwright/test";
 const basePath = process.env.VITE_BASE_PATH ?? "/";
 export default defineConfig({
   testDir: "./src/test/e2e",
+  testIgnore: "sync.spec.ts",
   timeout: 45_000,
   fullyParallel: true,
   use: {
-    baseURL: `http://127.0.0.1:4173${basePath}`,
+    baseURL: `http://127.0.0.1:9474${basePath}`,
     timezoneId: "America/New_York",
     trace: "retain-on-failure",
     launchOptions: {
@@ -13,9 +14,9 @@ export default defineConfig({
     },
   },
   webServer: {
-    command: "npm run preview -- --host 127.0.0.1 --port 4173",
-    url: `http://127.0.0.1:4173${basePath}`,
-    reuseExistingServer: !process.env.CI,
+    command: "npm run preview -- --host 127.0.0.1 --port 9474",
+    url: `http://127.0.0.1:9474${basePath}`,
+    reuseExistingServer: false,
     timeout: 120_000,
   },
   projects: [

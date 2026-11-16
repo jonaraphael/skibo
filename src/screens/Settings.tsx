@@ -1,5 +1,5 @@
 import { ChangeEvent, useRef, useState } from "react";
-import { useApp } from "../app/store";
+import { canEdit, saveStatus, useApp } from "../app/store";
 import { PageHeader } from "../components/Shared";
 import { Icon } from "../components/Icon";
 import { Dialog } from "../components/Dialog";
@@ -15,7 +15,9 @@ export const downloadBackup = (json: string) => {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 export const Settings = () => {
-  const { data, preferences, importBackup, storageError, pending } = useApp();
+  const { data, preferences, importBackup, pending } = useApp();
+  const storageError = useApp((s) => !canEdit(s));
+  const sync = useApp();
   const input = useRef<HTMLInputElement>(null);
   const [restore, setRestore] = useState<{
     json: string;
@@ -46,6 +48,61 @@ export const Settings = () => {
         title="Settings"
       />
       <div className="settings-grid">
+        {sync.syncAvailable && (
+          <section className="settings-panel panel">
+            <p className="eyebrow">Sync</p>
+            <h2>Sync across devices.</h2>
+            <p>
+              Sign into the same Google account on your phone and computer.
+              Synced notebooks need internet for editing; your last saved copy
+              is available to view offline.
+            </p>
+            {sync.syncUser ? (
+              <>
+                <p className="sync-account">{sync.syncUser.email}</p>
+                <p role="status">{saveStatus(sync)}</p>
+                <button
+                  className="button secondary"
+                  disabled={pending > 0 || sync.authPending}
+                  onClick={sync.disconnectAccount}
+                >
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <button
+                className="button primary"
+                disabled={
+                  pending > 0 ||
+                  sync.authPending ||
+                  sync.syncLoading ||
+                  !!sync.storageError
+                }
+                onClick={sync.connectAccount}
+              >
+                {sync.authPending ? "Signing in…" : "Sync with Google"}
+              </button>
+            )}
+            <p className="setting-note">
+              Your separate local notebook stays on this device. If this account
+              already has a notebook, that is the one you’ll open.
+            </p>
+            {sync.syncError && (
+              <p className="error-text" role="alert">
+                {sync.syncError}
+              </p>
+            )}
+            {sync.syncUser && sync.syncError && (
+              <button
+                className="button secondary"
+                disabled={pending > 0}
+                onClick={() => window.location.reload()}
+              >
+                Retry sync
+              </button>
+            )}
+          </section>
+        )}
         <section className="settings-panel panel">
           <p className="eyebrow">Look & feel</p>
           <h2>Appearance and feedback.</h2>
@@ -168,9 +225,9 @@ export const Settings = () => {
           <p className="eyebrow">Data</p>
           <h2>Backup and restore.</h2>
           <p>
-            Your notebook stays in this browser, available offline after the
-            first visit. Back it up before clearing browser data or moving to a
-            new device.
+            {sync.syncUser
+              ? "Your notebook syncs with your Google account. Download a copy whenever you’d like an extra backup."
+              : "Your notebook stays in this browser, available offline after the first visit. Back it up before clearing browser data or moving to a new device."}
           </p>
           <div className="backup-actions">
             <button
@@ -215,8 +272,11 @@ export const Settings = () => {
           <h2>Make this your notebook?</h2>
           <p className="lede">
             This file contains {restore.tasks} tasks and {restore.events}{" "}
-            history entries. Restoring replaces the notebook currently in this
-            browser.
+            history entries. Restoring replaces the notebook currently in this{" "}
+            {sync.syncUser
+              ? "account, including its copy on other devices"
+              : "browser"}
+            .
           </p>
           <div className="form-stack">
             <button
@@ -228,10 +288,9 @@ export const Settings = () => {
             <button
               className="button primary"
               disabled={!!storageError || pending > 0}
-              onClick={() => {
+              onClick={async () => {
                 try {
-                  importBackup(restore.json);
-                  setRestore(null);
+                  if (await importBackup(restore.json)) setRestore(null);
                 } catch (e) {
                   setError(e instanceof Error ? e.message : "Restore failed.");
                   setRestore(null);
