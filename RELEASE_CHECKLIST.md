@@ -1,4 +1,4 @@
-# SkinnerBox release checks
+# Skibo release checks
 
 Run these against the final commit:
 

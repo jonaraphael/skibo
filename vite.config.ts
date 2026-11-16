@@ -13,8 +13,8 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["favicon.svg", "apple-touch-icon.png"],
       manifest: {
-        name: "SkinnerBox",
-        short_name: "SkinnerBox",
+        name: "Skibo",
+        short_name: "Skibo",
         description: "Small intentions. A chance at something good.",
         theme_color: "#f5f3ec",
         background_color: "#f5f3ec",

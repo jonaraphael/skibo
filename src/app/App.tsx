@@ -128,11 +128,11 @@ export const App = () => {
       </a>
       <div className={`app-shell ${onboarding ? "onboarding" : ""}`}>
         <aside className="sidebar">
-          <Link className="wordmark" to="/" aria-label="SkinnerBox home">
+          <Link className="wordmark" to="/" aria-label="Skibo home">
             <span className="brand-mark">
               <Icon name="leaf" size={21} />
             </span>
-            skinnerbox<span className="wordmark-dot">.</span>
+            Skibo
           </Link>
           {!onboarding && (
             <>
@@ -184,8 +184,8 @@ export const App = () => {
             <span className="desktop-breadcrumb">
               Your space <span>/</span> {currentLabel}
             </span>
-            <Link className="mobile-wordmark" to="/">
-              skinnerbox.
+            <Link className="mobile-wordmark" to="/" aria-label="Skibo home">
+              Skibo
             </Link>
             <div className="topbar-actions">
               {state.data.onboarded && (

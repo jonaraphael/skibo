@@ -1,4 +1,4 @@
-# SkinnerBox
+# Skibo
 
 A calmer place for small intentions, with a chance at something good.
 
@@ -40,6 +40,8 @@ npm run test:e2e         # production app on mobile and desktop Chromium
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` can select an existing local Chromium binary. CI verifies both UTC and America/New_York and runs browser tests under `/skinner/`.
 
 ## Data and recovery
+
+Skibo was previously called SkinnerBox. The published URL and browser database are preserved so existing notebooks continue to open after the rename.
 
 A version 2 notebook stores tasks, the reward menu, preferences, and an append-only action journal in one IndexedDB transaction. Generated occurrences are no longer stored. Original `sb:root` data stays untouched after import. Import preserves surviving original completion and reward records; history already discarded by the old app cannot be recovered. Dates follow the device's local timezone. Original wins appear in the tray because the old app did not record enjoyment. The loading-error screen can export raw stored data for recovery.
 

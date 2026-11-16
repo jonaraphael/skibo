@@ -1,6 +1,7 @@
 import { Notebook } from "../../app/types";
 import { emptyNotebook, importLegacy, parseNotebook } from "./notebook";
 
+// Keep the published storage key so the Skibo rebrand opens existing notebooks.
 const DB_NAME = "skinnerbox";
 let connection: Promise<IDBDatabase> | undefined;
 const database = (): Promise<IDBDatabase> =>
@@ -23,7 +24,7 @@ const database = (): Promise<IDBDatabase> =>
       connection = undefined;
       reject(
         new Error(
-          "Close other SkinnerBox tabs, then reload to open your notebook.",
+          "Close other Skibo tabs, then reload to open your notebook.",
         ),
       );
     };
