@@ -1,4 +1,4 @@
-import { expect, Page, test } from "@playwright/test";
+import { expect, Locator, Page, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { emptyNotebook } from "../../lib/persistence/notebook";
 import { task } from "../fixtures";
@@ -42,6 +42,18 @@ const seed = async (page: Page, notebook?: unknown) => {
       tx.oncomplete = () => db.close();
     };
   }, data);
+};
+
+const answerRhythm = async (
+  scope: Page | Locator,
+  answers = [
+    "No, once per round",
+    "Time since I last did it",
+    "It gets worse each day",
+  ],
+) => {
+  for (const name of answers)
+    await scope.getByRole("radio", { name, exact: true }).check();
 };
 
 test.beforeEach(async ({ page }) => {
@@ -109,6 +121,7 @@ test("first task, reward, undo, saved roll, menu, record, and reload", async ({
   await noOverflow(page);
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByText("“Take a little walk”")).toBeVisible();
+  await expect(page.getByRole("radio", { checked: true })).toHaveCount(0);
   await page.getByRole("radio", { name: "Heavy effort, big rewards" }).check();
   await noOverflow(page);
   await page.screenshot({
@@ -133,6 +146,8 @@ test("first task, reward, undo, saved roll, menu, record, and reload", async ({
   const habitSheet = page.getByRole("dialog", { name: "New task" });
   await expect(habitSheet).toBeVisible();
   await habitSheet.getByLabel("Task name").fill("Water the indoor plants");
+  await expect(habitSheet.getByRole("radio", { checked: true })).toHaveCount(0);
+  await answerRhythm(habitSheet);
   await habitSheet
     .getByRole("button", { name: "Add task", exact: true })
     .click();
@@ -277,9 +292,7 @@ test("plan, custom schedules, pause, archive, undo and file backup", async ({
     .click();
   const sheet = page.getByRole("dialog", { name: "New task" });
   await sheet.getByLabel("Task name").fill("Water the plants");
-  await sheet
-    .getByRole("radio", { name: "Time since I last did it", exact: true })
-    .check();
+  await answerRhythm(sheet);
   await sheet.getByLabel("Every", { exact: true }).fill("3");
   await sheet.getByRole("button", { name: "light", exact: true }).click();
   await noOverflow(page);
@@ -525,7 +538,11 @@ test("invalid dates and intervals cannot corrupt the saved notebook", async ({
   await sheet.getByRole("button", { name: "Add task", exact: true }).click();
   await expect(sheet.getByRole("alert")).toBeInViewport();
   await sheet.getByLabel("Task name").fill("A safe one-off");
-  await sheet.getByRole("radio", { name: "A date on the calendar" }).check();
+  await answerRhythm(sheet, [
+    "No, once per round",
+    "A date on the calendar",
+    "It gets worse each day",
+  ]);
   await sheet
     .getByRole("combobox", { name: "Repeats", exact: true })
     .selectOption("once");
@@ -768,9 +785,11 @@ test("setup derives Tank, early resets take no draw, and repeated practice stays
     .click();
   const editor = page.getByRole("dialog", { name: "New task" });
   await editor.getByLabel("Task name").fill("Water plants");
-  await editor
-    .getByRole("radio", { name: "Nothing, then a sharp cost" })
-    .check();
+  await answerRhythm(editor, [
+    "No, once per round",
+    "Time since I last did it",
+    "Nothing, then a sharp cost",
+  ]);
   await expect(editor.getByLabel("Your task rules")).toContainText("Tank");
   await expect(editor.getByLabel("Your task rules")).toContainText(
     "Earlier completions restart the clock with no draw",
@@ -807,7 +826,12 @@ test("setup derives Tank, early resets take no draw, and repeated practice stays
     .first()
     .click();
   await editor.getByLabel("Task name").fill("Piano practice");
-  await editor.getByRole("radio", { name: "Yes, each one adds up" }).check();
+  await expect(editor.getByRole("radio", { checked: true })).toHaveCount(0);
+  await answerRhythm(editor, [
+    "Yes, each one adds up",
+    "Time since I last did it",
+    "It gets worse each day",
+  ]);
   await expect(editor.getByLabel("Your task rules")).toContainText("Practice");
   await editor.getByRole("button", { name: "Add task", exact: true }).click();
   // Lose both draws to keep the test on the task list.
@@ -947,4 +971,42 @@ test("an unreadable notebook offers download, cancellation, and an explicit fres
   await expect(
     page.getByRole("button", { name: "Get started", exact: true }),
   ).toBeVisible();
+});
+
+test("every new-task dialog starts blank, including after cancelling or adding a task", async ({
+  page,
+}) => {
+  await seed(page);
+  await go(page);
+  const open = () =>
+    page
+      .getByRole("button", { name: "Add a task", exact: true })
+      .filter({ visible: true })
+      .first()
+      .click();
+  const editor = page.getByRole("dialog", { name: "New task" });
+  await open();
+  await expect(editor.getByRole("radio", { checked: true })).toHaveCount(0);
+  await expect(editor.getByLabel("Your task rules")).toHaveCount(0);
+  await editor.getByLabel("Task name").fill("An unfinished draft");
+  await editor
+    .getByRole("radio", { name: "No, once per round", exact: true })
+    .check();
+  await expect(editor.getByRole("radio", { checked: true })).toHaveCount(1);
+  await editor.getByRole("button", { name: "Add task", exact: true }).click();
+  await expect(editor.getByRole("alert")).toContainText(
+    "Answer all three questions.",
+  );
+  await editor
+    .getByRole("button", { name: "Close New task", exact: true })
+    .click();
+  await nav(page, "Plan");
+  await open();
+  await expect(editor.getByRole("radio", { checked: true })).toHaveCount(0);
+  await editor.getByLabel("Task name").fill("An intentional task");
+  await answerRhythm(editor);
+  await editor.getByRole("button", { name: "Add task", exact: true }).click();
+  await expect(editor).toHaveCount(0);
+  await open();
+  await expect(editor.getByRole("radio", { checked: true })).toHaveCount(0);
 });

@@ -4,7 +4,7 @@ import { canEdit, useApp } from "../app/store";
 import { Effort, Task } from "../app/types";
 import { Dialog } from "../components/Dialog";
 import { EffortPips } from "../components/Shared";
-import { RhythmFields } from "../components/RhythmFields";
+import { Answered, RhythmFields } from "../components/RhythmFields";
 import { useWorkspace } from "../components/Workspace";
 import { dayKey, liveEvents, prettyDate } from "../lib/schedule/calendar";
 import {
@@ -33,11 +33,20 @@ export const TaskEditor = ({
   const [behavior, setBehavior] = useState(
     task?.behavior ?? defaultBehavior(today),
   );
+  const [answered, setAnswered] = useState<Answered>({
+    payoff: !!task,
+    clock: !!task,
+    cost: !!task,
+  });
   const [error, setError] = useState("");
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
       setError("Give your task a name.");
+      return;
+    }
+    if (!Object.values(answered).every(Boolean)) {
+      setError("Answer all three questions.");
       return;
     }
     if (disabled) return;
@@ -94,6 +103,10 @@ export const TaskEditor = ({
           schedule={schedule}
           behavior={behavior}
           today={today}
+          answered={answered}
+          onAnswer={(question) =>
+            setAnswered((previous) => ({ ...previous, [question]: true }))
+          }
           change={(s, b) => {
             setSchedule(s);
             setBehavior(b);
