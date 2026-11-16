@@ -4,9 +4,11 @@ import { useApp } from "../app/store";
 import { TaskPeriod } from "../app/types";
 import { Dotted, PageHeader, EmptyState } from "../components/Shared";
 import { Icon } from "../components/Icon";
+import { HoldNotice } from "../components/HoldNotice";
 import { TaskRow } from "../components/TaskRow";
 import { useWorkspace } from "../components/Workspace";
-import { dayKey, periodFor, prettyDate } from "../lib/schedule/calendar";
+import { dayKey, prettyDate } from "../lib/schedule/calendar";
+import { periodFor } from "../lib/tasks/taxonomy";
 import { completions, trayRewards } from "../lib/rewards/engine";
 
 export const Dashboard = () => {
@@ -64,6 +66,7 @@ export const Dashboard = () => {
       </PageHeader>
       <div className="workspace-columns">
         <div className="workspace-main">
+          <HoldNotice />
           <div className="list-heading">
             <h2>
               Tasks <span>{open.length}</span>
@@ -174,8 +177,8 @@ export const Dashboard = () => {
               <>
                 <h2>Nothing waiting.</h2>
                 <p>
-                  Each completion has a 3 in 10 chance of a reward from your
-                  menu.
+                  Each eligible completion has a 3 in 10 chance of a reward from
+                  your menu.
                 </p>
                 <Link className="text-link" to="/rewards/menu">
                   Edit rewards <Icon name="arrow" size={16} />

@@ -1,11 +1,12 @@
 import { useRef, useState } from "react";
 import { TaskPeriod } from "../app/types";
 import { canEdit, useApp } from "../app/store";
-import { prettyDate, scheduleLabel } from "../lib/schedule/calendar";
+import { scheduleLabel } from "../lib/schedule/calendar";
 import { Dotted, EffortPips } from "./Shared";
 import { useWorkspace } from "./Workspace";
 import { Icon } from "./Icon";
 import { completions } from "../lib/rewards/engine";
+import { taskType } from "../lib/tasks/taxonomy";
 import { TaskHistory } from "./TaskHistory";
 
 export const TaskRow = ({
@@ -37,17 +38,8 @@ export const TaskRow = ({
     bucket !== "done" &&
     bucket !== "later";
   const meta = management
-    ? [
-        scheduleLabel(task.schedule),
-        ...(task.status !== "active" ? [task.status] : []),
-      ]
-    : bucket === "late" && period.date
-      ? [
-          `Due ${prettyDate(period.date, { weekday: "short", month: "short", day: "numeric" })}`,
-        ]
-      : period.time
-        ? [`By ${period.time}`, scheduleLabel(task.schedule)]
-        : [scheduleLabel(task.schedule)];
+    ? `${taskType(task.schedule, task.behavior)} · ${scheduleLabel(task.schedule)}${task.status !== "active" ? ` · ${task.status}` : ""}`
+    : period.detail;
   const act = (fn: () => void) => {
     menu.current?.querySelector("summary")?.focus();
     fn();
@@ -75,7 +67,8 @@ export const TaskRow = ({
         if (Math.abs(dx) > 90 && Math.abs(dy) < 35) {
           e.preventDefault();
           swiped.current = true;
-          dx < 0 ? snooze(period) : skip(period);
+          if (dx < 0 && !period.hold) snooze(period);
+          else if (dx > 0) skip(period);
         }
       }}
       onTouchCancel={() => {
@@ -134,15 +127,20 @@ export const TaskRow = ({
                     <i className="reward-dot" />
                     {lastCompletion.reward.title}
                   </span>
+                ) : lastCompletion.roll === null ? (
+                  "early reset · no draw"
                 ) : (
                   "no reward"
                 ),
               ]}
             />
           ) : (
-            <Dotted items={meta} />
+            <Dotted items={[meta]} />
           )}
         </span>
+        {period.hold && (
+          <span className="task-hold">Tray on hold · {period.hold}</span>
+        )}
         {task.notes && <span className="task-note">{task.notes}</span>}
         <TaskHistory task={task} />
       </button>
@@ -180,10 +178,18 @@ export const TaskRow = ({
           <button onClick={() => act(() => openTask(task))}>
             Edit task & history
           </button>
+          {lastCompletion && bucket !== "done" && (
+            <button
+              disabled={!!storageError}
+              onClick={() => act(() => undo(lastCompletion.id))}
+            >
+              Undo last completion
+            </button>
+          )}
           {actionable && (
             <>
               <button
-                disabled={!!storageError}
+                disabled={!!storageError || !!period.hold}
                 onClick={() => act(() => snooze(period))}
               >
                 Move to tomorrow
@@ -192,7 +198,7 @@ export const TaskRow = ({
                 disabled={!!storageError}
                 onClick={() => act(() => skip(period))}
               >
-                Skip this time
+                Declare a miss
               </button>
             </>
           )}

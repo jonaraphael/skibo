@@ -13,7 +13,8 @@ import { useApp } from "../app/store";
 import { emptyNotebook, parseNotebook } from "../lib/persistence/notebook";
 import { saveNotebook } from "../lib/persistence/storage";
 import { drawReward } from "../lib/rewards/engine";
-import { periodFor } from "../lib/schedule/calendar";
+
+import { periodFor } from "../lib/tasks/taxonomy";
 import { WorkspaceContext } from "../components/Workspace";
 import { Toast } from "../components/Toast";
 import { Dotted } from "../components/Shared";
@@ -67,7 +68,7 @@ it("refuses a mutation that the loader could not reopen", async () => {
   expect(useApp.getState().data).toBe(original);
   expect(saveNotebook).not.toHaveBeenCalled();
 });
-it("normalizes an invalid hidden field when switching schedule modes", async () => {
+it("derives a calendar start-date task from the behavior questions", async () => {
   render(
     <MemoryRouter>
       <WorkspaceContext.Provider value={workspace}>
@@ -78,10 +79,10 @@ it("normalizes an invalid hidden field when switching schedule modes", async () 
   fireEvent.change(screen.getByLabelText("Task name"), {
     target: { value: "A one-off" },
   });
-  fireEvent.change(screen.getByLabelText("Every", { exact: true }), {
-    target: { value: "" },
+  await click(screen.getByRole("radio", { name: "A date on the calendar" }));
+  fireEvent.change(screen.getByLabelText("Repeats", { exact: true }), {
+    target: { value: "once" },
   });
-  await click(screen.getByRole("button", { name: "Once" }));
   await click(screen.getByRole("button", { name: "Add task" }));
   expect(useApp.getState().data.tasks).toHaveLength(1);
   expect(() => parseNotebook(useApp.getState().data)).not.toThrow();
@@ -96,9 +97,7 @@ it("connects a recurring habit to tier examples and its saved reward effort", as
   fireEvent.change(screen.getByLabelText("First task"), {
     target: { value: "Do ten minutes of mobility" },
   });
-  fireEvent.change(screen.getByLabelText("How often?"), {
-    target: { value: "weekly" },
-  });
+  await click(screen.getByRole("radio", { name: "Yes, each session counts" }));
   await click(
     screen.getByRole("button", {
       name: "Continue",
@@ -121,7 +120,8 @@ it("connects a recurring habit to tier examples and its saved reward effort", as
   expect(data.tasks[0]).toMatchObject({
     title: "Do ten minutes of mobility",
     effort: "heavy",
-    schedule: { kind: "weekly" },
+    schedule: { kind: "after" },
+    behavior: { payoff: "more", cost: "ramp" },
   });
   expect(data.rewards).toHaveLength(177);
   const values = [0.1, 0.9, 0];
@@ -250,7 +250,7 @@ it("leaves older resolved one-offs in history without showing them on Today", as
           type: "completed",
           taskId: t.id,
           taskTitle: t.title,
-          period: `${t.id}:once`,
+          period: `${t.id}:2026-11-14:start:r1:unit:0`,
           at: new Date("2026-11-14T12:00:00").toISOString(),
           roll: 0.9,
           reward: null,
@@ -337,7 +337,7 @@ it("does not report a successful undo when saving is blocked", async () => {
           type: "skipped",
           taskId: t.id,
           taskTitle: t.title,
-          period: `${t.id}:once`,
+          period: `${t.id}:2026-11-14:start:r1:unit:0`,
           at: now.toISOString(),
         },
       ],
@@ -397,4 +397,137 @@ it("joins dotted items so a line can only break between them", () => {
   expect(
     [...container.querySelectorAll(".phrase")].map((el) => el.textContent),
   ).toEqual(["2 done ·", "1 reward ·", "5 open"]);
+});
+
+it("enforces every active hold in store actions, including snooze and direct enjoyment", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(now);
+  try {
+    const tank = {
+      ...task({ kind: "after", start: "2026-11-01", every: 7 }),
+      behavior: { ...task().behavior, cost: "cliff" as const, lead: 1 },
+    };
+    const deadline = {
+      ...task({ kind: "once", start: "2026-11-15" }),
+      id: "deadline",
+      behavior: {
+        ...task().behavior,
+        cost: "cliff" as const,
+        windowStart: "2026-11-01",
+        lead: 1,
+      },
+    };
+    const data = { ...emptyNotebook(), tasks: [tank, deadline] };
+    data.events.push({
+      id: "earned",
+      type: "completed",
+      taskId: tank.id,
+      taskTitle: tank.title,
+      period: "old",
+      at: "2026-11-01T12:00:00.000Z",
+      roll: 0.1,
+      reward: data.rewards[0],
+    });
+    useApp.setState({ data });
+    await useApp.getState().enjoy("earned");
+    expect(useApp.getState().data.events).toHaveLength(1);
+    await useApp
+      .getState()
+      .snooze(periodFor(tank, data.events, now, data.preferences));
+    expect(useApp.getState().data.events).toHaveLength(1);
+    await useApp
+      .getState()
+      .skip(periodFor(tank, data.events, now, data.preferences));
+    await useApp.getState().enjoy("earned");
+    expect(
+      useApp.getState().data.events.filter((e) => e.type === "enjoyed"),
+    ).toHaveLength(0);
+    const updated = useApp.getState().data;
+    await useApp
+      .getState()
+      .complete(periodFor(deadline, updated.events, now, updated.preferences));
+    await useApp.getState().enjoy("earned");
+    expect(useApp.getState().data.events.at(-1)?.type).toBe("enjoyed");
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("records expired Target windows automatically and only once", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(now);
+  try {
+    const target = {
+      ...task({ kind: "once", start: "2026-11-14" }),
+      behavior: {
+        ...task().behavior,
+        payoff: "more" as const,
+        cost: "cliff" as const,
+        windowStart: "2026-11-01",
+        goal: 5,
+      },
+    };
+    useApp.setState({ data: { ...emptyNotebook(), tasks: [target] } });
+    await useApp.getState().settle();
+    expect(useApp.getState().data.events).toHaveLength(1);
+    expect(useApp.getState().data.events[0].type).toBe("missed");
+    await useApp.getState().settle();
+    expect(useApp.getState().data.events).toHaveLength(1);
+    expect(() => parseNotebook(useApp.getState().data)).not.toThrow();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("keeps history and starts fresh rounds when changing clocks, while title edits keep the same rhythm", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(now);
+  try {
+    const data = {
+      ...emptyNotebook(),
+      tasks: [task({ kind: "after", start: "2026-11-01", every: 7 })],
+    };
+    useApp.setState({ data });
+    await useApp
+      .getState()
+      .complete(periodFor(data.tasks[0], [], now, data.preferences));
+    const prior = useApp.getState().data.tasks[0];
+    await useApp.getState().saveTask({ ...prior, title: "Renamed" }, prior.id);
+    expect(useApp.getState().data.tasks[0].rhythmRevision).toBe(1);
+    await useApp.getState().saveTask(
+      {
+        ...prior,
+        schedule: { ...prior.schedule, kind: "once", start: "2026-11-15" },
+      },
+      prior.id,
+    );
+    const updated = useApp.getState().data;
+    expect(updated.tasks[0].rhythmRevision).toBe(2);
+    expect(updated.events.filter((e) => e.type === "completed")).toHaveLength(
+      1,
+    );
+    expect(
+      periodFor(updated.tasks[0], updated.events, now, updated.preferences)
+        .bucket,
+    ).toBe("today");
+    expect(() => parseNotebook(updated)).not.toThrow();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("rejects invalid Target input before trying to evaluate its schedule", async () => {
+  const invalid = {
+    ...task({ every: 0 }),
+    behavior: {
+      ...task().behavior,
+      cost: "cliff" as const,
+      payoff: "more" as const,
+    },
+  };
+  expect(
+    await useApp.getState().change((d) => ({ ...d, tasks: [invalid] })),
+  ).toBe(false);
+  expect(useApp.getState().data.tasks).toHaveLength(0);
+  expect(saveNotebook).not.toHaveBeenCalled();
 });

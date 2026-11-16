@@ -31,7 +31,8 @@ import {
 } from "../lib/sync/firebase";
 import { completePeriod, undoEvent } from "../lib/tasks/actions";
 import { createCryptoRng } from "../lib/rewards/rng";
-import { addDays, dayKey, periodFor } from "../lib/schedule/calendar";
+import { addDays, dayKey } from "../lib/schedule/calendar";
+import { periodFor, activeHolds, targetMisses } from "../lib/tasks/taxonomy";
 import { trayRewards } from "../lib/rewards/engine";
 
 export const randomId = () => crypto.randomUUID();
@@ -58,10 +59,11 @@ interface AppState {
   initialize: () => Promise<void>;
   change: (update: (data: Notebook) => Notebook) => Promise<boolean>;
   saveTask: (
-    input: Omit<Task, "id" | "createdAt">,
+    input: Omit<Task, "id" | "createdAt" | "rhythmRevision">,
     id?: string,
   ) => Promise<boolean>;
   setTaskStatus: (id: string, status: Task["status"]) => Promise<void>;
+  settle: () => Promise<void>;
   complete: (period: TaskPeriod) => Promise<void>;
   skip: (period: TaskPeriod) => Promise<void>;
   snooze: (period: TaskPeriod) => Promise<void>;
@@ -122,12 +124,10 @@ const acceptCloud = (record: CloudRecord, uid: string, active: number) => {
   });
   void saveCloudCache(uid, { data, revision: record.revision }).catch(() => {
     if (active === session)
-      useApp
-        .getState()
-        .notify({
-          message:
-            "Saved online. This browser couldn't keep an offline copy; download a backup.",
-        });
+      useApp.getState().notify({
+        message:
+          "Saved online. This browser couldn't keep an offline copy; download a backup.",
+      });
   });
 };
 const openAccount = async (user: AppState["syncUser"]) => {
@@ -233,8 +233,16 @@ export const useApp = create<AppState>((set, get) => ({
       })),
   change: async (update) => {
     if (!canEdit(get())) return false;
-    const data = { ...update(get().data), revision: get().data.revision + 1 };
+    const updated = update(get().data);
+    let data: Notebook;
     try {
+      // Validate user input before evaluating schedules or generating events.
+      parseNotebook(updated);
+      data = {
+        ...updated,
+        events: [...updated.events, ...targetMisses(updated, new Date())],
+        revision: get().data.revision + 1,
+      };
       parseNotebook(data);
     } catch {
       get().notify({
@@ -275,8 +283,16 @@ export const useApp = create<AppState>((set, get) => ({
     }
   },
   saveTask: async (input, id) => {
+    const previous = get().data.tasks.find((t) => t.id === id);
+    const changedRhythm =
+      previous &&
+      (JSON.stringify(previous.schedule) !== JSON.stringify(input.schedule) ||
+        JSON.stringify(previous.behavior) !== JSON.stringify(input.behavior));
     const task: Task = {
       ...input,
+      rhythmRevision: previous
+        ? previous.rhythmRevision + (changedRhythm ? 1 : 0)
+        : 1,
       id: id ?? randomId(),
       createdAt:
         get().data.tasks.find((t) => t.id === id)?.createdAt ??
@@ -320,6 +336,15 @@ export const useApp = create<AppState>((set, get) => ({
       },
     });
   },
+  settle: async () => {
+    if (
+      !canEdit(get()) ||
+      get().pending ||
+      !targetMisses(get().data, new Date()).length
+    )
+      return;
+    await get().change((d) => d);
+  },
   complete: async (period) => {
     if (get().reveal?.reward) return;
     const event = completePeriod(
@@ -332,15 +357,22 @@ export const useApp = create<AppState>((set, get) => ({
     if (!event || get().storageError) return;
     if (!(await get().change((d) => ({ ...d, events: [...d.events, event] }))))
       return;
-    set({ reveal: event });
+    set({ reveal: event.roll === null ? null : event });
     get().notify({
-      message: event.reward ? "Done. Reward earned." : "Done. No reward.",
+      message:
+        event.roll === null
+          ? "Done. Clock restarted; too early for a draw."
+          : event.reward
+            ? "Done. Reward earned."
+            : "Done. No reward.",
       undo: () => get().undo(event.id),
     });
   },
   skip: async (period) => {
     const d = get().data;
-    const current = periodFor(period.task, d.events, new Date(), d.preferences);
+    const task = d.tasks.find((t) => t.id === period.task.id);
+    if (!task || task.status !== "active") return;
+    const current = periodFor(task, d.events, new Date(), d.preferences);
     if (
       current.key !== period.key ||
       current.bucket === "done" ||
@@ -363,12 +395,28 @@ export const useApp = create<AppState>((set, get) => ({
     )
       return;
     get().notify({
-      message: "Skipped this time. No roll taken.",
+      message: "Miss declared. This round’s draw is forfeited.",
       undo: () => get().undo(event.id),
     });
   },
   snooze: async (period) => {
     const now = new Date();
+    const d = get().data;
+    const task = d.tasks.find((t) => t.id === period.task.id);
+    if (!task || task.status !== "active") return;
+    const current = periodFor(task, d.events, now, d.preferences);
+    if (
+      current.key !== period.key ||
+      current.bucket === "done" ||
+      current.bucket === "later"
+    )
+      return;
+    if (current.hold) {
+      get().notify({
+        message: "Complete the task or declare a miss to release its hold.",
+      });
+      return;
+    }
     const event: JournalEvent = {
       id: randomId(),
       type: "snoozed",
@@ -396,6 +444,13 @@ export const useApp = create<AppState>((set, get) => ({
     get().notify({ message: "Undone." });
   },
   enjoy: async (target) => {
+    if (activeHolds(get().data, new Date()).length) {
+      get().notify({
+        message:
+          "The tray is on hold. Complete the listed tasks or declare a miss first.",
+      });
+      return;
+    }
     if (!trayRewards(get().data.events).some((e) => e.id === target)) return;
     const event: JournalEvent = {
       id: randomId(),

@@ -4,6 +4,8 @@ import { canEdit, useApp } from "../app/store";
 import { Completion, Effort, RewardSize } from "../app/types";
 import { EmptyState, PageHeader } from "../components/Shared";
 import { Icon } from "../components/Icon";
+import { HoldNotice } from "../components/HoldNotice";
+import { activeHolds, targetMisses } from "../lib/tasks/taxonomy";
 import { RecordChart } from "../components/RecordChart";
 import { useWorkspace } from "../components/Workspace";
 import {
@@ -26,6 +28,7 @@ export const Rewards = () => {
   const storageError = useApp((s) => !canEdit(s));
   const { openReward, now } = useWorkspace();
   const tray = trayRewards(data.events);
+  const held = activeHolds(data, now).length > 0;
   const [size, setSize] = useState("all");
   const [range, setRange] = useState("week");
   const [showEnjoyed, setShowEnjoyed] = useState(false);
@@ -39,6 +42,15 @@ export const Rewards = () => {
         : "0000-00-00";
   const filtered = all.filter(
     (e) => dayKey(new Date(e.at), data.preferences.dayStart) >= start,
+  );
+  const draws = filtered.filter((e) => e.roll !== null);
+  const misses = [
+    ...liveEvents(data.events),
+    ...targetMisses(data, now),
+  ].filter(
+    (e) =>
+      (e.type === "skipped" || e.type === "missed") &&
+      dayKey(new Date(e.at), data.preferences.dayStart) >= start,
   );
   const paid = filtered.filter((e) => e.reward).length;
   const enjoyedIds = new Set(
@@ -61,9 +73,9 @@ export const Rewards = () => {
     data.preferences.bigRewardCap === null ||
     bigThisWeek < data.preferences.bigRewardCap;
   const forecast = forecastRewards(
-    previousWeek.map(
-      (e) => data.tasks.find((t) => t.id === e.taskId)?.effort ?? "solid",
-    ),
+    previousWeek
+      .filter((e) => e.roll !== null)
+      .map((e) => data.tasks.find((t) => t.id === e.taskId)?.effort ?? "solid"),
     data.rewards,
     data.preferences.bigRewardCap,
   );
@@ -92,10 +104,10 @@ export const Rewards = () => {
         {!showEnjoyed ? (
           <button
             className="button reward-button"
-            disabled={!!storageError}
+            disabled={!!storageError || held}
             onClick={() => enjoy(e.id)}
           >
-            Enjoy <Icon name="check" size={16} />
+            {held ? "On hold" : "Enjoy"} <Icon name="check" size={16} />
           </button>
         ) : (
           <span className="enjoyed-label">
@@ -125,6 +137,7 @@ export const Rewards = () => {
       </nav>
       {tab === "tray" && (
         <>
+          <HoldNotice />
           <div className="list-heading">
             <h2>{showEnjoyed ? "Enjoyed rewards" : "Waiting rewards"}</h2>
             <button
@@ -143,7 +156,7 @@ export const Rewards = () => {
             >
               {showEnjoyed
                 ? "Rewards you mark as enjoyed appear here."
-                : "Complete a task to draw for a reward. Each completion has a 30% chance of a reward when your menu has an eligible size."}
+                : "Complete a task to draw for a reward. Each eligible completion has a 30% chance of a reward when your menu has an eligible size."}
             </EmptyState>
           )}
         </>
@@ -153,7 +166,9 @@ export const Rewards = () => {
           <section className="odds-banner">
             <Icon name="rewards" size={21} />
             <p>
-              <strong>Each completion has a 3 in 10 chance of a reward.</strong>{" "}
+              <strong>
+                Each eligible completion has a 3 in 10 chance of a reward.
+              </strong>{" "}
               Task effort sets the size.
             </p>
             <button
@@ -289,12 +304,12 @@ export const Rewards = () => {
               </div>
               <div>
                 <strong>
-                  {filtered.length
-                    ? `${Math.round((paid / filtered.length) * 100)}%`
+                  {draws.length
+                    ? `${Math.round((paid / draws.length) * 100)}%`
                     : "—"}
                 </strong>
                 <span>
-                  {paid} of {filtered.length} completions
+                  {paid} of {draws.length} draws
                 </span>
               </div>
               <div>
@@ -322,17 +337,48 @@ export const Rewards = () => {
                 </span>
                 <div>
                   <strong>{e.taskTitle}</strong>
-                  <p>{e.reward ? e.reward.title : "No reward"}</p>
+                  <p>
+                    {e.reward
+                      ? e.reward.title
+                      : e.roll === null
+                        ? "Early reset · no draw"
+                        : "No reward"}
+                  </p>
                 </div>
                 <time>
                   {prettyDate(
                     dayKey(new Date(e.at), data.preferences.dayStart),
                   )}
-                  <small>Roll {e.roll.toFixed(4)}</small>
+                  <small>
+                    {e.roll === null ? "No draw" : `Roll ${e.roll.toFixed(4)}`}
+                  </small>
                 </time>
               </article>
             ))}
           </div>
+          {misses.length > 0 && (
+            <section className="miss-record">
+              <div className="group-label">
+                <h3>Misses</h3>
+                <span>{misses.length}</span>
+              </div>
+              {misses.map((e) => (
+                <div className="history-line" key={e.id}>
+                  <span>
+                    {"taskTitle" in e ? e.taskTitle : ""} ·{" "}
+                    {e.type === "missed"
+                      ? "Unmet target at deadline"
+                      : "Declared miss"}
+                  </span>
+                  <time>
+                    {prettyDate(
+                      dayKey(new Date(e.at), data.preferences.dayStart),
+                    )}
+                  </time>
+                </div>
+              ))}
+            </section>
+          )}
           {!filtered.length && (
             <EmptyState title="No completions yet.">
               Completed tasks and their reward outcomes appear here.

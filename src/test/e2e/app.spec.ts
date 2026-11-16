@@ -102,6 +102,7 @@ test("first task, reward, undo, saved roll, menu, record, and reload", async ({
   });
   await page.getByRole("button", { name: "Get started" }).click();
   await page.getByLabel("First task").fill("Take a little walk");
+  await page.getByRole("radio", { name: "Yes, each session counts" }).check();
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByText("“Take a little walk”")).toBeVisible();
   await page.getByRole("radio", { name: "Heavy effort, big rewards" }).check();
@@ -184,9 +185,7 @@ test("first task, reward, undo, saved roll, menu, record, and reload", async ({
   await expect(
     page.getByRole("heading", { name: "Your cumulative record" }),
   ).toBeVisible();
-  await expect(
-    page.getByText("1 of 1 completions", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("1 of 1 draws", { exact: true })).toBeVisible();
   await noOverflow(page);
   await page.screenshot({
     path: testInfo.outputPath("record.png"),
@@ -274,7 +273,9 @@ test("plan, custom schedules, pause, archive, undo and file backup", async ({
     .click();
   const sheet = page.getByRole("dialog", { name: "New task" });
   await sheet.getByLabel("Task name").fill("Water the plants");
-  await sheet.getByRole("button", { name: "After done", exact: true }).click();
+  await sheet
+    .getByRole("radio", { name: "Time since I last did it", exact: true })
+    .check();
   await sheet.getByLabel("Every", { exact: true }).fill("3");
   await sheet.getByRole("button", { name: "light", exact: true }).click();
   await noOverflow(page);
@@ -304,13 +305,13 @@ test("plan, custom schedules, pause, archive, undo and file backup", async ({
   ).toBeVisible();
   await page.getByRole("button", { name: "paused", exact: true }).click();
   await expect(
-    page.getByText("3 days after done · paused", { exact: true }),
+    page.getByText("Upkeep · 3 days after done · paused", { exact: true }),
   ).toBeVisible();
   await page.getByLabel("Actions for Water the plants").click();
   await page.getByRole("button", { name: "Archive task", exact: true }).click();
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await expect(
-    page.getByText("3 days after done · paused", { exact: true }),
+    page.getByText("Upkeep · 3 days after done · paused", { exact: true }),
   ).toBeVisible();
   await page
     .getByRole("link", { name: "Settings", exact: true })
@@ -409,7 +410,7 @@ test("snooze and skip are reversible without consuming a reward roll", async ({
   await expect(complete).toBeVisible();
   await page.getByLabel("Actions for Take a walk").click();
   await page
-    .getByRole("button", { name: "Skip this time", exact: true })
+    .getByRole("button", { name: "Declare a miss", exact: true })
     .click();
   await expect(complete).toHaveCount(0);
   await page.getByRole("button", { name: "Undo", exact: true }).click();
@@ -419,9 +420,7 @@ test("snooze and skip are reversible without consuming a reward roll", async ({
     .getByRole("navigation", { name: "Rewards", exact: true })
     .getByRole("link", { name: "Record", exact: true })
     .click();
-  await expect(
-    page.getByText("0 of 0 completions", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("0 of 0 draws", { exact: true })).toBeVisible();
 });
 
 test("paused row menus stay above following rows and completed tasks offer keyboard undo", async ({
@@ -507,7 +506,7 @@ test("paused row menus stay above following rows and completed tasks offer keybo
   ).toBeEnabled();
 });
 
-test("hidden invalid schedule fields and partial years cannot corrupt the saved notebook", async ({
+test("invalid dates and intervals cannot corrupt the saved notebook", async ({
   page,
 }) => {
   await seed(page);
@@ -522,15 +521,14 @@ test("hidden invalid schedule fields and partial years cannot corrupt the saved 
   await sheet.getByRole("button", { name: "Add task", exact: true }).click();
   await expect(sheet.getByRole("alert")).toBeInViewport();
   await sheet.getByLabel("Task name").fill("A safe one-off");
-  await sheet.getByLabel("Every", { exact: true }).fill("");
-  await sheet.getByRole("button", { name: "Monthly", exact: true }).click();
-  await sheet.getByLabel("Day of month", { exact: false }).fill("");
-  await sheet.getByRole("button", { name: "Once", exact: true }).click();
-  await sheet.getByRole("button", { name: "Pick a day", exact: true }).click();
-  await sheet.getByLabel("Start date").fill("0026-11-20");
+  await sheet.getByRole("radio", { name: "A date on the calendar" }).check();
+  await sheet
+    .getByRole("combobox", { name: "Repeats", exact: true })
+    .selectOption("once");
+  await sheet.getByLabel("First start date").fill("0026-11-20");
   await sheet.getByRole("button", { name: "Add task", exact: true }).click();
   await expect(sheet).toBeVisible();
-  await sheet.getByLabel("Start date").fill("2026-11-15");
+  await sheet.getByLabel("First start date").fill("2026-11-15");
   await sheet.getByRole("button", { name: "Add task", exact: true }).click();
   await expect(sheet).toHaveCount(0);
   await expect(page.locator(".save-status")).toHaveText("Saved on this device");
@@ -577,7 +575,7 @@ test("evidence strips update with rewards and undo, survive reload, and stay rea
     effort: "solid" as const,
   };
   const once = {
-    ...task({ kind: "once", start: null }),
+    ...task({ kind: "once", start: "2026-01-31" }),
     id: "expenses",
     title: "File expenses",
   };
@@ -595,7 +593,7 @@ test("evidence strips update with rewards and undo, survive reload, and stay rea
       type: "completed",
       taskId: writing.id,
       taskTitle: writing.title,
-      period: `${writing.id}:${date}:`,
+      period: `${writing.id}:${date}:start:r1:unit:0`,
       at: `${date}T17:00:00.000Z`,
       roll: day === 14 ? 0.1 : 0.9,
       reward:
@@ -686,4 +684,147 @@ test("evidence strips update with rewards and undo, survive reload, and stay rea
   await page.setViewportSize({ width: 320, height: 700 });
   await noOverflow(page);
   await expect(row.locator(".history-count")).toBeInViewport();
+});
+
+test("holds protect the whole tray and declared misses release it without losing rewards", async ({
+  page,
+}) => {
+  const data = emptyNotebook();
+  data.onboarded = true;
+  data.preferences.reduceMotion = true;
+  const practice = {
+    ...task({ kind: "after", start: "2026-11-01", every: 7 }),
+    behavior: { ...task().behavior, payoff: "more" as const },
+    title: "Piano practice",
+  };
+  const tank = {
+    ...task({ kind: "after", start: "2026-11-08", every: 7 }),
+    id: "plants",
+    title: "Water plants",
+    behavior: { ...task().behavior, cost: "cliff" as const, lead: 1 },
+  };
+  data.tasks = [practice, tank];
+  data.events = [
+    {
+      id: "earned",
+      type: "completed",
+      taskId: practice.id,
+      taskTitle: practice.title,
+      period: `${practice.id}:after:0:r1:unit:0`,
+      at: "2026-11-10T17:00:00.000Z",
+      roll: 0.1,
+      reward: data.rewards[0],
+    },
+  ];
+  await seed(page, data);
+  await go(page, "/rewards/tray");
+  const holds = page.getByRole("region", { name: "Reward tray holds" });
+  await expect(holds).toContainText("Water plants");
+  await expect(
+    page.getByRole("button", { name: "On hold", exact: true }),
+  ).toBeDisabled();
+  await noOverflow(page);
+  await page.reload();
+  await expect(holds).toBeVisible();
+  await holds
+    .getByRole("button", { name: "Declare a miss for Water plants" })
+    .click();
+  await expect(holds).toHaveCount(0);
+  await expect(page.locator(".reward-card")).toHaveCount(1);
+  await expect(
+    page.getByRole("button", { name: "Enjoy", exact: true }),
+  ).toBeEnabled();
+  await page
+    .getByRole("navigation", { name: "Rewards", exact: true })
+    .getByRole("link", { name: "Record" })
+    .click();
+  await expect(
+    page.getByText("Water plants · Declared miss", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("navigation", { name: "Rewards", exact: true })
+    .getByRole("link", { name: "Tray", exact: false })
+    .click();
+  await page.getByRole("button", { name: "Enjoy", exact: true }).click();
+  await expect(page.locator(".reward-card")).toHaveCount(0);
+});
+
+test("setup derives Tank, early resets take no draw, and repeated practice stays available", async ({
+  page,
+}) => {
+  const data = emptyNotebook();
+  data.onboarded = true;
+  data.preferences.reduceMotion = true;
+  await seed(page, data);
+  await go(page);
+  await page
+    .getByRole("button", { name: "Add a task", exact: true })
+    .filter({ visible: true })
+    .first()
+    .click();
+  const editor = page.getByRole("dialog", { name: "New task" });
+  await editor.getByLabel("Task name").fill("Water plants");
+  await editor
+    .getByRole("radio", { name: "Fine for a while, then costly" })
+    .check();
+  await expect(editor.getByLabel("Your task rules")).toContainText("Tank");
+  await expect(editor.getByLabel("Your task rules")).toContainText(
+    "Earlier completions reset the clock without a draw",
+  );
+  await noOverflow(page);
+  await editor.getByRole("button", { name: "Add task", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Complete Water plants", exact: true })
+    .click();
+  await expect(
+    page.getByRole("dialog", { name: "Reward", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Complete Water plants", exact: true }),
+  ).toBeEnabled();
+  await nav(page, "Rewards");
+  await page
+    .getByRole("navigation", { name: "Rewards", exact: true })
+    .getByRole("link", { name: "Record" })
+    .click();
+  await expect(
+    page.getByText("Early reset · no draw", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("0 of 0 draws", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByText("Early reset · no draw", { exact: true }),
+  ).toBeVisible();
+  await nav(page, "Today");
+  await page
+    .getByRole("button", { name: "Add a task", exact: true })
+    .filter({ visible: true })
+    .first()
+    .click();
+  await editor.getByLabel("Task name").fill("Piano practice");
+  await editor.getByRole("radio", { name: "Yes, each session counts" }).check();
+  await expect(editor.getByLabel("Your task rules")).toContainText("Practice");
+  await editor.getByRole("button", { name: "Add task", exact: true }).click();
+  // Lose both draws to keep the test on the task list.
+  await page.evaluate(() => {
+    Crypto.prototype.getRandomValues = function <
+      T extends ArrayBufferView | null,
+    >(array: T): T {
+      if (array) new Uint8Array(array.buffer).fill(255);
+      return array;
+    };
+  });
+  const complete = page.getByRole("button", {
+    name: "Complete Piano practice",
+    exact: true,
+  });
+  await complete.click();
+  await expect(complete).toBeEnabled();
+  await complete.click();
+  await nav(page, "Rewards");
+  await page
+    .getByRole("navigation", { name: "Rewards", exact: true })
+    .getByRole("link", { name: "Record" })
+    .click();
+  await expect(page.getByText("0 of 2 draws", { exact: true })).toBeVisible();
 });

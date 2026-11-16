@@ -12,7 +12,7 @@ const completion = (date: string, at = `${date}T12:00:00`): Completion => ({
   type: "completed",
   taskId: daily.id,
   taskTitle: daily.title,
-  period: `${daily.id}:${date}:`,
+  period: `${daily.id}:${date}:start:r1:unit:0`,
   at: new Date(at).toISOString(),
   roll: 0.9,
   reward: null,
@@ -84,7 +84,7 @@ describe("task evidence history", () => {
       id: "move",
       type: "snoozed",
       taskId: t.id,
-      period: `${t.id}:2026-11-14:`,
+      period: `${t.id}:2026-11-14:start:r1:unit:0`,
       until: "2026-11-16",
       at: now.toISOString(),
     };

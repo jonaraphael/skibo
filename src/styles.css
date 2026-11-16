@@ -2898,3 +2898,100 @@ html[data-motion="reduce"] *::after {
     grid-template-columns: 1fr;
   }
 }
+
+/* Questions explain behavior before naming a rhythm. */
+.rhythm-choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.rhythm-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.rhythm-choice.selected {
+  background: var(--surface);
+  border-color: var(--green);
+}
+.rhythm-choice input {
+  width: auto;
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+.field-hint {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 6px 0 0;
+}
+.rhythm-timing {
+  padding: 16px 0;
+}
+.rhythm-summary {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  line-height: 1.6;
+}
+.rhythm-summary p {
+  margin: 0 0 8px;
+}
+.rhythm-summary p:last-child {
+  margin-bottom: 0;
+}
+.hold-notice {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-left: 3px solid #bb8740;
+  border-radius: 12px;
+  margin-bottom: 24px;
+}
+.hold-notice h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+.hold-notice p {
+  line-height: 1.5;
+}
+.hold-notice ul {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+}
+.hold-notice li {
+  display: grid;
+  gap: 6px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.hold-notice li > span {
+  font-size: 13px;
+}
+.hold-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+.task-hold {
+  display: block;
+  color: var(--amber-ink);
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 6px;
+}
+.miss-record {
+  margin-top: 24px;
+}
+@media (max-width: 480px) {
+  .rhythm-choices {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,11 +1,6 @@
 import { JournalEvent, Preferences, Task } from "../../app/types";
-import {
-  addDays,
-  dayKey,
-  liveEvents,
-  matchesDay,
-  periodFor,
-} from "../schedule/calendar";
+import { addDays, dayKey, liveEvents, matchesDay } from "../schedule/calendar";
+import { periodFor } from "../tasks/taxonomy";
 
 export type HistoryState =
   "done" | "reward" | "skipped" | "open" | "late" | "missed";
@@ -15,7 +10,7 @@ export interface HistoryDay {
 }
 
 // Calendar completions retain their original due date even when finished late
-// or snoozed. Ignore the time suffix so editing a due time preserves evidence.
+// or snoozed. The rhythm and unit suffixes do not change that calendar date.
 const periodDate = (task: Task, key: string) =>
   key.slice(task.id.length + 1, task.id.length + 11);
 
@@ -26,7 +21,12 @@ export const taskHistory = (
   preferences: Preferences,
 ): HistoryDay[] => {
   const schedule = task.schedule;
-  if (schedule.kind === "once" || schedule.kind === "after") return [];
+  if (
+    schedule.kind === "once" ||
+    schedule.kind === "after" ||
+    task.behavior.payoff === "more"
+  )
+    return [];
   const today = dayKey(now, preferences.dayStart);
   const start = schedule.start ?? today;
   const resolved = new Map(

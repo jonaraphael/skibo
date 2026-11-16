@@ -2,11 +2,11 @@
 
 Do what you want to do more often.
 
-Add a task, choose rewards that matter to you, and build a record of your effort. Each completion gets a 30% reward roll. Wins stay in your tray until you enjoy them.
+Add a task, choose rewards that matter to you, and build a record of your effort. Each eligible completion gets a 30% reward roll. Wins stay in your tray until you enjoy them.
 
 New notebooks come with 177 personal reward ideas, from good coffee and garden upgrades to climbing gear and time off, with big rewards capped at one per week by default. The walkthrough connects a habit that's hard to start with reward examples at every tier, lets you add your own, and finishes by inviting you to write down more habits.
 
-- **Today:** one row per task, grouped into overdue, today, anytime, and done.
+- **Today:** one row per task, grouped into overdue, today, anytime, and done, with need counts and tray holds.
 - **Plan:** a week forecast, task search, and active/paused/archived tasks.
 - **Rewards:** your tray, an editable menu, payout forecasts, and the full completion record.
 - **Your rhythm:** local dates, a custom day-start hour, light/dark/system themes, reduced motion, optional sound, and a weekly cap on big rewards.
@@ -14,9 +14,24 @@ New notebooks come with 177 personal reward ideas, from good coffee and garden u
 
 ## Schedules and rewards
 
-Tasks can happen once (with or without a date), every N days, on selected weekdays every N weeks, monthly by date or nth weekday, or N hours/days/weeks after completion. Short months use their last day when a requested date does not exist. Calendar routines have one open period; missed dates never create extra rows. Finishing late advances the schedule from the actual completion day. Pausing and archiving keep history.
+Task setup asks three questions: does a second session today count, does a calendar date or your last completion start the clock, and does waiting cost a little each day or become costly after a grace period? The answers derive one of eight rhythms. The form reads back the draw and hold rules before you save; onboarding uses the same questions.
 
-Skibo draws two marks: a leaf for each day a task was done and a flower for each reward. Calendar task rows show up to 14 scheduled days along a stem, oldest to newest: a leaf for a completion, a flower for a reward, an outlined leaf for the open period, and a closed bud for a skipped period. Bare stem has no completion. Late and snoozed completions fill the original due day; undo removes that mark. The count includes the open day. One-off and after-completion tasks have no calendar strip. Schedule edits recompute the strip against the current schedule; the full action record remains unchanged.
+| Rhythm | Draws | Holds |
+| --- | --- | --- |
+| Target | Every unit until the deadline | Behind the daily straight-line pace; the first unit each local day releases it for that day |
+| Backlog | Every unit owed; calendar rounds add units to the pile | Never; shows units owed |
+| Lapse | Every unit | At the app due time, ahead of the real limit |
+| Practice | Every session | Never; shows idle days |
+| Deadline | Once per window, from opening through late completion | At the app due time, ahead of the real deadline |
+| Start date | Once per round, from its start date onward | Never; shows days lost |
+| Tank | From halfway to the app due time | At the app due time, ahead of the real limit |
+| Upkeep | From halfway to due | Never; shows days past due |
+
+Tank and Upkeep can be completed early: that restarts the clock and records a completion without taking a draw. The halfway fraction is adjustable. Safety margins place holds before a real limit. A hold locks enjoyment of the whole tray, including newly earned rewards. Completion or a declared miss releases that task's hold; a miss forfeits the rest of the round's draws and stays in the record. Multiple holds must all be resolved. Paused and archived tasks do not hold the tray. Snoozing cannot bypass a hold.
+
+Target windows close at their real deadline (the end of the local day when no time is set). Unmet totals automatically enter the record as misses, including after time away. There is no extra finish-line reward. Calendar schedules support once, every N days, selected weekdays every N weeks, and monthly dates or nth weekdays. Short months use their last day. Completion clocks support hours, days, and weeks, with local day boundaries and DST handling.
+
+Calendar tasks that pay once per round show up to 14 scheduled days, oldest to newest: a leaf for a completion, a flower for a reward, an outline for the open period, and a bare stem for no completion. Late and snoozed completions fill the original calendar day; undo removes that mark. One-off, completion-clock, and multi-unit tasks have no calendar strip. Schedule edits recompute the strip; the full action record remains unchanged.
 
 The hit probability is fixed at 0.30. On a winning roll, the size weights are:
 
@@ -26,9 +41,9 @@ The hit probability is fixed at 0.30. On a winning roll, the size weights are:
 | Solid  |   20% |    60% | 20% |
 | Heavy  |   10% |    35% | 55% |
 
-Missing, paused, or capped sizes are removed and the remaining weights are normalized. The Menu shows the current effective mix. If there is no eligible reward, completion still counts and no reward is awarded. The observed payout rate will vary. Undoing then redoing the same period reuses its original draw, including its reward snapshot.
+Missing, paused, or capped sizes are removed and the remaining weights are normalized. The Menu shows the current effective mix. If there is no eligible reward, completion still counts and no reward is awarded. The observed payout rate will vary. Undoing then redoing the same unit reuses its original draw, including its reward snapshot. An early completion stays a no-draw result on redo.
 
-Completion, skip, snooze, and enjoyment actions have a five-second undo; hovering or focusing the notification keeps it available. Completed rows also offer an Undo button. The countdown waits while the reward reveal is open. On touch devices, swipe a task left to move it to tomorrow, or right to skip the open period. The same actions are available in each row's menu.
+Completion, declared miss, snooze, and enjoyment actions have a five-second undo; hovering or focusing the notification keeps it available. Completed rows also offer an Undo button. The countdown waits while the reward reveal is open. On touch devices, swipe a task left to move it to tomorrow, or right to declare a miss. The same actions are available in each row's menu.
 
 ## Development
 
@@ -45,7 +60,7 @@ npm run test:e2e         # production app on mobile and desktop Chromium
 
 ## Data and recovery
 
-A notebook stores tasks, the reward menu, preferences, and an append-only action journal in one IndexedDB transaction. Occurrences are calculated from schedules. Dates follow the device's local timezone. The loading-error screen can export raw stored data for recovery.
+Version 3 notebooks store the derived behavior settings alongside tasks, the reward menu, preferences, and an append-only action journal in one IndexedDB transaction. Occurrences are calculated from schedules. Dates follow the device's local timezone. The loading-error screen can export raw stored data for recovery.
 
 Use **Settings → Download backup** before clearing browser data or moving devices. Restore validates the complete file before offering to replace the notebook. Other tabs cannot silently overwrite a newer revision: a stale tab stops saving and offers an export of its current state. Use one tab for editing; reload other tabs to see the saved version.
 

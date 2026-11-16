@@ -6,8 +6,8 @@ import {
   dayKey,
   matchesDay,
   nextCalendarDay,
-  periodFor,
 } from "../lib/schedule/calendar";
+import { periodFor } from "../lib/tasks/taxonomy";
 import { completePeriod } from "../lib/tasks/actions";
 
 describe("local calendar periods", () => {
@@ -136,7 +136,7 @@ it("lets a recurring task become a new one-off without resolving it from old his
     data.preferences,
   );
   expect(due.bucket).toBe("today");
-  expect(due.key).toBe(`${original.id}:once`);
+  expect(due.key).toBe(`${original.id}:2026-11-16:start:r1:unit:0`);
 });
 it("uses distinct hourly periods for the repeated DST hour", () => {
   const data = emptyNotebook();

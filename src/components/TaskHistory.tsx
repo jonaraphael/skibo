@@ -7,7 +7,7 @@ import { useWorkspace } from "./Workspace";
 const labels: Record<HistoryState, string> = {
   done: "Completed",
   reward: "Completed with a reward",
-  skipped: "Skipped",
+  skipped: "Declared miss",
   open: "Open",
   late: "Overdue",
   missed: "No completion",
