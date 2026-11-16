@@ -35,8 +35,15 @@ export const loadNotebook = async (): Promise<Notebook> => {
     let result: Notebook;
     request.onsuccess = () => {
       try {
-        if (request.result) result = parseNotebook(request.result);
-        else {
+        if (request.result) {
+          result = parseNotebook(request.result);
+          if (request.result.version !== result.version) {
+            // Commit the upgrade atomically and invalidate older open tabs.
+            result = { ...result, revision: result.revision + 1 };
+            parseNotebook(result);
+            store.put(result, "root");
+          }
+        } else {
           result = emptyNotebook();
           store.put(result, "root");
         }
@@ -140,5 +147,34 @@ export const saveCloudCache = async (
     tx.onerror = () => reject(tx.error);
     tx.onabort = () =>
       reject(tx.error ?? new Error("The offline copy could not be saved."));
+  });
+};
+
+// Used only after an explicit confirmation on the local recovery screen.
+export const resetLocalNotebook = async (): Promise<void> => {
+  const db = await database();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("notebook", "readwrite");
+    const store = tx.objectStore("notebook");
+    const request = store.get("root");
+    request.onsuccess = () => {
+      const previous = request.result?.revision;
+      const revision =
+        Number.isSafeInteger(previous) &&
+        previous >= 0 &&
+        previous < Number.MAX_SAFE_INTEGER
+          ? previous + 1
+          : 0;
+      store.put({ ...emptyNotebook(), revision }, "root");
+    };
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () =>
+      reject(
+        tx.error ??
+          new Error(
+            "Could not start a new notebook. Your stored data has been kept.",
+          ),
+      );
   });
 };

@@ -60,7 +60,7 @@ npm run test:e2e         # production app on mobile and desktop Chromium
 
 ## Data and recovery
 
-Version 3 notebooks store the derived behavior settings alongside tasks, the reward menu, preferences, and an append-only action journal in one IndexedDB transaction. Occurrences are calculated from schedules. Dates follow the device's local timezone. The loading-error screen can export raw stored data for recovery.
+Version 3 notebooks store the derived behavior settings alongside tasks, the reward menu, preferences, and an append-only action journal in one IndexedDB transaction. Occurrences are calculated from schedules. Dates follow the device's local timezone. Empty notebooks saved before the task-rhythm update upgrade automatically, preserving the reward menu and preferences. Older notebooks with tasks remain untouched. The loading-error screen can export raw stored data and offers an explicitly confirmed fresh start for this browser; synced account notebooks are not deleted.
 
 Use **Settings → Download backup** before clearing browser data or moving devices. Restore validates the complete file before offering to replace the notebook. Other tabs cannot silently overwrite a newer revision: a stale tab stops saving and offers an export of its current state. Use one tab for editing; reload other tabs to see the saved version.
 
