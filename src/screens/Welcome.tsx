@@ -4,6 +4,7 @@ import { Effort, RewardSize, Schedule } from "../app/types";
 import { rewardExamples } from "../lib/rewards/rewardPools";
 import { canEdit, randomId, useApp } from "../app/store";
 import { Icon } from "../components/Icon";
+import { Mark, Sprig } from "../components/Marks";
 import { useWorkspace } from "../components/Workspace";
 import { dayKey, localDate } from "../lib/schedule/calendar";
 import { availableMix } from "../lib/rewards/engine";
@@ -129,38 +130,29 @@ export const Welcome = () => {
   return (
     <section className={`welcome ${step === 2 ? "welcome-menu" : ""}`}>
       <div className="welcome-art" aria-hidden="true">
-        <div className="welcome-orbit orbit-one" />
-        <div className="welcome-orbit orbit-two" />
-        <div className="welcome-orbit orbit-three" />
-        <div className="welcome-leaf">
-          <Icon name="leaf" size={54} />
-        </div>
-        <i className="floating-orb orb-one" />
-        <i className="floating-orb orb-two" />
-        <i className="floating-orb orb-three" />
+        <Sprig />
       </div>
       <div className="welcome-content">
         <p className="eyebrow">Skibo</p>
         {step === 0 && (
           <>
             <h1>
-              Do what you want
-              <br />
-              to do more often.
+              <span className="phrase">Do what you want</span>{" "}
+              <span className="phrase">to do more often.</span>
             </h1>
             <p className="lede">
-              Choose a habit and rewards worth working toward. Complete the
-              task, draw for a reward, and see your history build.
+              Choose a habit and rewards worth working toward. Each day you do
+              it adds a leaf. Each reward you draw adds a flower.
             </p>
             <div className="welcome-facts">
               <span>
-                <Icon name="check" size={17} /> Tasks
+                <Mark kind="leaf" /> A day done
               </span>
               <span>
-                <Icon name="rewards" size={17} /> Rewards
+                <Mark kind="flower" /> A reward
               </span>
               <span>
-                <Icon name="leaf" size={17} /> History
+                <Mark kind="open" /> Still open
               </span>
             </div>
             <button
@@ -319,7 +311,10 @@ export const Welcome = () => {
         )}
         {step === 3 && (
           <>
-            <h1>Finish a task. Draw a reward.</h1>
+            <h1>
+              <span className="phrase">Finish a task.</span>{" "}
+              <span className="phrase">Draw a reward.</span>
+            </h1>
             <p className="lede">
               Imagine you've just finished <strong>“{firstTask?.title}”</strong>
               . Try a practice draw. Earned rewards stay in your tray until you

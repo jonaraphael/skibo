@@ -151,10 +151,10 @@ export const Rewards = () => {
       {tab === "menu" && (
         <>
           <section className="odds-banner">
-            <Icon name="spark" size={21} />
+            <Icon name="rewards" size={21} />
             <p>
-              <strong>A 3 in 10 chance, every time.</strong> Effort shapes the
-              size. Your menu makes it meaningful.
+              <strong>Each completion has a 3 in 10 chance of a reward.</strong>{" "}
+              Task effort sets the size.
             </p>
             <button
               className="button primary"
@@ -227,7 +227,7 @@ export const Rewards = () => {
             </div>
           </section>
           <section className="odds-table panel">
-            <p className="eyebrow">Nothing behind the curtain</p>
+            <p className="eyebrow">Size odds</p>
             <h2>When a roll wins, here's the size mix.</h2>
             <table>
               <thead>
@@ -306,7 +306,7 @@ export const Rewards = () => {
             </div>
             <RecordChart events={filtered} />
             <p className="quiet-note">
-              One step for every completion. An amber mark for every reward. The
+              One step for every completion. A flower for every reward. The
               chance on each new roll is 30%; your observed rate will vary.
             </p>
           </section>
@@ -318,7 +318,7 @@ export const Rewards = () => {
             {[...filtered].reverse().map((e) => (
               <article key={e.id}>
                 <span className={`activity-symbol ${e.reward ? "paid" : ""}`}>
-                  <Icon name={e.reward ? "rewards" : "check"} size={19} />
+                  <Icon name={e.reward ? "rewards" : "leaf"} size={19} />
                 </span>
                 <div>
                   <strong>{e.taskTitle}</strong>

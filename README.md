@@ -16,7 +16,7 @@ New notebooks come with 177 personal reward ideas, from good coffee and garden u
 
 Tasks can happen once (with or without a date), every N days, on selected weekdays every N weeks, monthly by date or nth weekday, or N hours/days/weeks after completion. Short months use their last day when a requested date does not exist. Calendar routines have one open period; missed dates never create extra rows. Finishing late advances the schedule from the actual completion day. Pausing and archiving keep history.
 
-Calendar task rows show up to 14 scheduled days, oldest to newest: green for a completion, amber for a reward, an outline for the open period, and a slash for a skipped period. Empty squares have no completion. Late and snoozed completions fill the original due day; undo removes that mark. The count includes the open day. One-off and after-completion tasks have no calendar strip. Schedule edits recompute the strip against the current schedule; the full action record remains unchanged.
+Skibo draws two marks: a leaf for each day a task was done and a flower for each reward. Calendar task rows show up to 14 scheduled days along a stem, oldest to newest: a leaf for a completion, a flower for a reward, an outlined leaf for the open period, and a closed bud for a skipped period. Bare stem has no completion. Late and snoozed completions fill the original due day; undo removes that mark. The count includes the open day. One-off and after-completion tasks have no calendar strip. Schedule edits recompute the strip against the current schedule; the full action record remains unchanged.
 
 The hit probability is fixed at 0.30. On a winning roll, the size weights are:
 

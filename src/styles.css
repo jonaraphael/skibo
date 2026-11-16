@@ -18,6 +18,12 @@
   --late: #a94c38;
   --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   --mono: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  /* The two marks, as masks: a leaf is a day done, a flower is a reward.
+     Marks.tsx draws the same shapes at illustration size. */
+  --mark-leaf: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 21C3 9 9 3 21 3C21 15 15 21 3 21Z'/%3E%3C/svg%3E");
+  --mark-leaf-open: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4.6 19.4C4.6 10 10 4.6 19.4 4.6C19.4 14 14 19.4 4.6 19.4Z' fill='none' stroke='black' stroke-width='2.6'/%3E%3C/svg%3E");
+  --mark-flower: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7.73 6.12A4.3 4.3 0 1 1 16.27 6.12A4.3 4.3 0 1 1 18.91 14.25A4.3 4.3 0 1 1 12 19.27A4.3 4.3 0 1 1 5.09 14.25A4.3 4.3 0 1 1 7.73 6.12Z'/%3E%3C/svg%3E");
+  --stem: color-mix(in srgb, var(--green) 45%, transparent);
   color-scheme: light;
 }
 html[data-theme="dark"] {
@@ -140,6 +146,87 @@ h3 {
 p {
   line-height: 1.65;
 }
+/* Line breaks. Headings and titles split into even lines; running text never
+   strands its last word; controls and labels stay on one line. A .phrase moves
+   to the next line whole before it breaks inside. */
+h1,
+h2,
+h3,
+legend,
+summary,
+.task-title,
+.tray-preview strong,
+.suggestion-list span {
+  text-wrap: balance;
+}
+p,
+li,
+small,
+.task-note {
+  text-wrap: pretty;
+}
+.lede,
+.schedule-echo,
+.setting-note,
+.quiet-note,
+.welcome-menu-note,
+.welcome-next p,
+.practice-card p,
+.empty-state p,
+.tray-panel > p,
+.forecast p,
+.about-panel p,
+.backup-panel > p,
+.odds-banner strong,
+.welcome-tier li {
+  text-wrap: balance;
+}
+/* Running text keeps a readable measure inside wide panels. */
+.odds-table > p,
+.backup-panel > p,
+.settings-panel .setting-note,
+.record-panel .quiet-note {
+  max-width: 68ch;
+}
+.record-panel .quiet-note {
+  margin-left: auto;
+  margin-right: auto;
+}
+.phrase {
+  display: inline-block;
+}
+.text-link,
+.chip,
+.segmented button,
+.filter-pills button,
+.reward-tabs a,
+.sidebar a,
+.mobile-nav a,
+.eyebrow,
+.reward-label,
+.history-count,
+time,
+th {
+  white-space: nowrap;
+}
+.mark {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex: none;
+  background: var(--green);
+  -webkit-mask: var(--mark-leaf) center / contain no-repeat;
+  mask: var(--mark-leaf) center / contain no-repeat;
+}
+.mark.open {
+  -webkit-mask-image: var(--mark-leaf-open);
+  mask-image: var(--mark-leaf-open);
+}
+.mark.flower {
+  background: var(--amber);
+  -webkit-mask-image: var(--mark-flower);
+  mask-image: var(--mark-flower);
+}
 svg {
   flex-shrink: 0;
 }
@@ -190,7 +277,7 @@ textarea {
   font-weight: 550;
   border: 1px solid transparent;
   border-radius: 8px;
-  white-space: normal;
+  white-space: nowrap;
   line-height: 1.3;
 }
 .button.primary {
@@ -461,10 +548,11 @@ textarea {
   background: var(--ink);
 }
 .reward-dot {
-  height: 7px;
-  width: 7px;
-  border-radius: 50%;
+  height: 10px;
+  width: 10px;
   background: var(--amber);
+  -webkit-mask: var(--mark-flower) center / contain no-repeat;
+  mask: var(--mark-flower) center / contain no-repeat;
   display: inline-block;
   flex-shrink: 0;
 }
@@ -482,9 +570,10 @@ textarea {
 }
 .chart-reward {
   fill: var(--amber);
-  stroke: var(--amber-ink);
-  stroke-width: 1.5;
-  stroke-linecap: round;
+  stroke: var(--surface);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  paint-order: stroke;
 }
 .compact figcaption {
   display: none;
@@ -730,7 +819,7 @@ textarea {
   border-radius: 5px;
 }
 .tray-panel h2 {
-  font-size: 26px;
+  font-size: 24px;
   line-height: 1.2;
   margin-top: 10px;
 }
@@ -1320,9 +1409,12 @@ legend {
   padding: 0 0 11px;
 }
 .chips {
-  display: flex;
-  gap: 7px;
-  flex-wrap: wrap;
+  display: block;
+  text-wrap: balance;
+  margin: 0 -7px -7px 0;
+}
+.chips > .chip {
+  margin: 0 7px 7px 0;
 }
 .chip {
   border: 1px solid var(--line);
@@ -1443,19 +1535,19 @@ legend {
 }
 .reward-orb {
   display: inline-block;
-  height: 20px;
-  width: 20px;
-  border-radius: 50%;
+  height: 22px;
+  width: 22px;
   background: var(--amber);
-  box-shadow: inset -3px -3px 0 #0001;
+  -webkit-mask: var(--mark-flower) center / contain no-repeat;
+  mask: var(--mark-flower) center / contain no-repeat;
 }
 .orb-0 {
-  height: 13px;
-  width: 13px;
+  height: 15px;
+  width: 15px;
 }
 .orb-2 {
-  height: 27px;
-  width: 27px;
+  height: 30px;
+  width: 30px;
 }
 .effort-picker .reward-orb {
   margin: 4px 0;
@@ -1530,14 +1622,20 @@ legend {
   margin: 7px auto 15px;
 }
 .reward-reveal-orb > i {
-  height: 33px;
-  width: 33px;
-  border-radius: 50%;
+  position: relative;
+  height: 46px;
+  width: 46px;
   background: var(--amber);
-  box-shadow:
-    0 0 0 7px color-mix(in srgb, var(--amber) 16%, transparent),
-    inset -4px -5px 0 #0001;
+  -webkit-mask: var(--mark-flower) center / contain no-repeat;
+  mask: var(--mark-flower) center / contain no-repeat;
   animation: drop 0.4s ease-out;
+}
+.reward-reveal-orb > i::after {
+  content: "";
+  position: absolute;
+  inset: 38%;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--amber-ink) 45%, var(--amber));
 }
 .reveal-sheet .reward-label {
   justify-content: center;
@@ -1612,13 +1710,15 @@ legend {
 }
 .welcome-content {
   padding: 15px 0;
-  max-width: 420px;
+  max-width: 500px;
+  container-type: inline-size;
 }
+/* Sized from the column so each headline phrase holds one line at any width. */
 .welcome-content h1 {
-  font-size: clamp(40px, 4.8vw, 66px);
+  font-size: clamp(30px, 11.2cqi, 56px);
   margin-top: 20px;
-  letter-spacing: -2px;
-  line-height: 1.05;
+  letter-spacing: -0.03em;
+  line-height: 1.06;
 }
 .welcome-content > .lede {
   font-size: 14px;
@@ -1715,68 +1815,49 @@ legend {
 .welcome-facts > span {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 7px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.welcome-facts .mark {
+  font-size: 13px;
 }
 .welcome-art {
-  position: relative;
-  height: 360px;
   display: grid;
   place-items: center;
 }
-.welcome-leaf {
-  width: 150px;
-  height: 150px;
-  border-radius: 50%;
-  background: var(--soft-green);
-  display: grid;
-  place-items: center;
-  color: var(--green);
-  transform: rotate(-14deg);
-}
-.welcome-orbit {
-  position: absolute;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  height: 245px;
-  width: 245px;
-}
-.orbit-two {
-  height: 320px;
-  width: 320px;
-  border-style: dashed;
-}
-.orbit-three {
-  height: 390px;
-  width: 390px;
-  opacity: 0.5;
-}
-.floating-orb {
-  position: absolute;
+.sprig {
   display: block;
-  background: var(--amber);
-  border-radius: 50%;
-  box-shadow: inset -4px -5px 0 #0001;
+  width: min(100%, 390px);
+  height: auto;
+  overflow: visible;
 }
-.orb-one {
-  width: 29px;
-  height: 29px;
-  right: 17%;
-  top: 13%;
+.sprig-stem,
+.sprig-stalk {
+  fill: none;
+  stroke: var(--stem);
+  stroke-width: 2;
+  stroke-linecap: round;
 }
-.orb-two {
-  height: 16px;
-  width: 16px;
-  left: 17%;
-  bottom: 13%;
+.sprig-leaf {
+  fill: var(--green);
 }
-.orb-three {
-  height: 11px;
-  width: 11px;
-  left: 7%;
-  top: 30%;
-  opacity: 0.5;
+.sprig-open {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 1.6;
+}
+.sprig-gap {
+  fill: var(--paper);
+  stroke: var(--stem);
+  stroke-width: 1.6;
+}
+.sprig-flower {
+  fill: var(--amber);
+}
+.sprig-eye {
+  fill: color-mix(in srgb, var(--amber-ink) 45%, var(--amber));
 }
 .welcome-progress {
   display: flex;
@@ -1972,12 +2053,6 @@ legend {
   .welcome {
     gap: 35px;
   }
-  .welcome-art {
-    transform: scale(0.8);
-  }
-  .welcome-content h1 {
-    font-size: 48px;
-  }
   .welcome-content > .lede {
     font-size: 13px;
   }
@@ -2026,18 +2101,18 @@ legend {
     min-height: 0;
   }
   .welcome-art {
-    height: 225px;
-    transform: scale(0.65);
-    margin-top: -20px;
-    margin-bottom: -20px;
+    justify-items: start;
+    width: 100%;
+    max-width: 460px;
+    margin: 0 auto;
+  }
+  .sprig {
+    width: 230px;
   }
   .welcome-content {
     margin: 0 auto;
     width: 100%;
     max-width: 460px;
-  }
-  .welcome-content h1 {
-    font-size: 50px;
   }
   .welcome-content > .lede {
     font-size: 14px;
@@ -2521,15 +2596,14 @@ legend {
     margin: auto;
   }
   .welcome-art {
-    height: 190px;
-    width: 100%;
-    margin: -28px 0 -15px;
-    transform: scale(0.57);
+    max-width: none;
+    margin: 0;
     flex-shrink: 0;
   }
+  .sprig {
+    width: 190px;
+  }
   .welcome-content h1 {
-    font-size: 51px;
-    max-width: none;
     margin-top: 17px;
   }
   .welcome-content > .lede {
@@ -2626,12 +2700,8 @@ legend {
   .menu-grid {
     grid-template-columns: 1fr;
   }
-  .welcome-content h1 {
-    font-size: 46px;
-  }
-  .welcome-art {
-    height: 165px;
-    transform: scale(0.5);
+  .sprig {
+    width: 165px;
   }
   .sheet {
     padding-left: 20px;
@@ -2702,40 +2772,51 @@ html[data-motion="reduce"] *::after {
 }
 .history-cells {
   display: inline-flex;
-  gap: 3px;
+  gap: 2px;
+  justify-content: flex-end;
+  align-items: flex-end;
+  padding-bottom: 1px;
+  border-bottom: 1px solid var(--stem);
+}
+.task-copy > .task-history-strip {
+  width: 209px;
   justify-content: flex-end;
 }
-.task-copy .history-cells {
-  width: 165px;
-}
 .history-cell {
-  width: 9px;
-  height: 9px;
-  border-radius: 2px;
+  width: 10px;
+  height: 10px;
   flex: none;
-  box-shadow: inset 0 0 0 1px var(--faint);
-}
-.history-cell.done {
   background: var(--green);
-  box-shadow: none;
+  -webkit-mask: var(--mark-leaf) center / contain no-repeat;
+  mask: var(--mark-leaf) center / contain no-repeat;
 }
 .history-cell.reward {
   background: var(--amber);
-  box-shadow: none;
+  -webkit-mask-image: var(--mark-flower);
+  mask-image: var(--mark-flower);
 }
-.history-cell.open {
-  box-shadow: inset 0 0 0 1.5px var(--green);
+.history-cell.open,
+.history-cell.late {
+  -webkit-mask-image: var(--mark-leaf-open);
+  mask-image: var(--mark-leaf-open);
 }
 .history-cell.late {
-  box-shadow: inset 0 0 0 1.5px var(--late);
+  background: var(--late);
+}
+/* No completion: bare stem with a node. Skipped: a closed bud. */
+.history-cell.missed,
+.history-cell.skipped {
+  -webkit-mask: none;
+  mask: none;
+  background: linear-gradient(var(--stem), var(--stem)) center bottom / 1px 4px
+    no-repeat;
 }
 .history-cell.skipped {
-  background: linear-gradient(
-    135deg,
-    transparent 43%,
-    var(--faint) 43%,
-    var(--faint) 57%,
-    transparent 57%
+  background: radial-gradient(
+    circle at 50% 68%,
+    transparent 1.4px,
+    var(--faint) 1.5px 2.7px,
+    transparent 2.8px
   );
 }
 .history-count {
@@ -2783,12 +2864,13 @@ html[data-motion="reduce"] *::after {
     grid-row: auto;
     margin-top: 4px;
   }
-  .task-copy .history-cells {
+  .task-copy > .task-history-strip {
     width: auto;
+    justify-content: flex-start;
   }
   .task-copy .history-cell {
-    width: 8px;
-    height: 8px;
+    width: 9px;
+    height: 9px;
   }
   .task-copy .history-count {
     text-align: left;
@@ -2806,6 +2888,13 @@ html[data-motion="reduce"] *::after {
 
 @media (max-width: 375px) {
   .task-copy .history-cells {
-    gap: 2px;
+    gap: 1px;
+  }
+}
+
+/* Reward titles get a full row on phones instead of two cramped columns. */
+@media (max-width: 520px) {
+  .menu-grid {
+    grid-template-columns: 1fr;
   }
 }

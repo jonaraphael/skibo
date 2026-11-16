@@ -16,6 +16,7 @@ import { drawReward } from "../lib/rewards/engine";
 import { periodFor } from "../lib/schedule/calendar";
 import { WorkspaceContext } from "../components/Workspace";
 import { Toast } from "../components/Toast";
+import { Dotted } from "../components/Shared";
 import { TaskRow } from "../components/TaskRow";
 import { Welcome } from "../screens/Welcome";
 import { TaskEditor } from "../screens/TaskEditor";
@@ -385,3 +386,15 @@ it.each(["paused", "archived"] as const)(
     expect(useApp.getState().toast?.message).not.toBe("Undone.");
   },
 );
+
+it("joins dotted items so a line can only break between them", () => {
+  const { container } = render(
+    <p>
+      <Dotted items={["2 done", "1 reward", "5 open"]} />
+    </p>,
+  );
+  expect(container.textContent).toBe("2 done · 1 reward · 5 open");
+  expect(
+    [...container.querySelectorAll(".phrase")].map((el) => el.textContent),
+  ).toEqual(["2 done ·", "1 reward ·", "5 open"]);
+});

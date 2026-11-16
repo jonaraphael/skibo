@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { Fragment, ReactNode } from "react";
 import { Effort } from "../app/types";
 import { Icon } from "./Icon";
 export const EffortPips = ({ effort }: { effort: Effort }) => (
@@ -17,6 +17,21 @@ export const EffortPips = ({ effort }: { effort: Effort }) => (
     ))}
   </span>
 );
+// Items joined by middle dots. A line breaks between items before it breaks
+// inside one, and the dot stays with the item it follows.
+export const Dotted = ({ items }: { items: ReactNode[] }) => (
+  <>
+    {items.map((item, i) => (
+      <Fragment key={i}>
+        <span className="phrase">
+          {item}
+          {i < items.length - 1 && " ·"}
+        </span>
+        {i < items.length - 1 && " "}
+      </Fragment>
+    ))}
+  </>
+);
 export const PageHeader = ({
   eyebrow,
   title,
@@ -25,7 +40,7 @@ export const PageHeader = ({
 }: {
   eyebrow?: string;
   title: string;
-  description?: string;
+  description?: ReactNode;
   children?: ReactNode;
 }) => (
   <header className="page-heading">
