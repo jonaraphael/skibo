@@ -6,9 +6,10 @@ Add a task, choose rewards that matter to you, and build a record of your effort
 
 New notebooks come with 177 personal reward ideas, from good coffee and garden upgrades to climbing gear and time off, with big rewards capped at one per week by default. The walkthrough connects a habit that's hard to start with reward examples at every tier, lets you add your own, and finishes by inviting you to write down more habits.
 
-- **Today** shows open tasks, including anything carried forward, with counts and tray holds. After two days, a row shows how many days have passed since its last completion. Click an open row to complete it, or open its menu to edit. Repeatable tasks start alongside other tasks. After their first check of the day, available repeats move to **Run it back** with their daily count. Select the done count beneath the date to see and undo individual completions.
+- **Today** shows open tasks, including anything carried forward, with counts and tray holds, beside the plant you are growing. Each open task is a blank leaf; a completion fills it and a reward makes it a flower. Select a leaf or flower to see the task that earned it. After two days, a row shows how many days have passed since its last completion. Click an open row to complete it, or open its menu to edit. Repeatable tasks start alongside other tasks. After their first check of the day, available repeats move to **Run it back** with their daily count. Select the done count beneath the date to see and undo individual completions.
 - **Plan:** a week forecast, task search, and active/paused/archived tasks.
-- **Rewards:** your tray, an editable menu, payout forecasts, and the full completion record.
+- **Rewards:** your tray, an editable menu, payout forecasts, and the full completion record. The tab shows how many rewards are waiting.
+- **Garden:** every finished plant on its own sheet. Pea Shoot is first and takes 10 completions; finishing a plant opens the choice of twelve seeds for the next one.
 - **Your rhythm:** local dates, a custom day-start hour, light/dark/system themes, reduced motion, optional sound, and a weekly cap on big rewards.
 - **Your notebook:** IndexedDB storage, offline operation after the first visit, and validated JSON backups.
 

@@ -44,9 +44,7 @@ export const Settings = () => {
   };
   return (
     <>
-      <PageHeader
-        title="Settings"
-      />
+      <PageHeader title="Settings" settings={false} />
       <div className="settings-grid">
         {sync.syncAvailable && (
           <section className="settings-panel panel">

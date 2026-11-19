@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import {
   cleanup,
@@ -22,6 +23,9 @@ import { TaskRow } from "../components/TaskRow";
 import { Welcome } from "../screens/Welcome";
 import { TaskEditor } from "../screens/TaskEditor";
 import { Dashboard } from "../screens/Dashboard";
+import { Garden } from "../screens/Garden";
+import { SeedPicker } from "../components/SeedPicker";
+import { gardenPlants } from "../lib/garden/garden";
 import { task } from "./fixtures";
 vi.mock("../lib/persistence/storage", () => ({
   saveNotebook: vi.fn(async () => {}),
@@ -34,7 +38,12 @@ const click = async (element: HTMLElement) => {
 };
 const now = new Date("2026-11-15T12:00:00");
 const openTask = vi.fn();
-const workspace = { now, openTask, openReward: vi.fn() };
+const workspace = {
+  now,
+  openTask,
+  openReward: vi.fn(),
+  openSeedPicker: vi.fn(),
+};
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal = function () {
     this.setAttribute("open", "");
@@ -587,43 +596,102 @@ it("keeps saved answers selected when editing a task", () => {
   expect(screen.getByLabelText("Your task rules")).toBeVisible();
 });
 
-it("keeps reward blossoms inspectable after sowing the next specimen", async () => {
+const grown = (count: number) => {
   const habit = task();
   const at = now.toISOString();
-  const data = emptyNotebook();
+  return {
+    ...emptyNotebook(),
+    tasks: [habit],
+    garden: [{ seed: "pea", at, start: 0 }],
+    events: Array.from({ length: count }, (_, index) => ({
+      id: `garden-${index}`,
+      type: "completed" as const,
+      at,
+      period: `round-${index}`,
+      taskId: habit.id,
+      taskTitle: habit.title,
+      roll: 0.1,
+      reward:
+        index === 0
+          ? { id: "tea", title: "Tea break", size: "medium" as const, active: true }
+          : null,
+    })),
+  };
+};
+const screenIn = (ui: ReactNode) =>
+  render(
+    <MemoryRouter>
+      <WorkspaceContext.Provider value={workspace}>{ui}</WorkspaceContext.Provider>
+    </MemoryRouter>,
+  );
+
+it("offers a new seed only after the growing plant is finished", async () => {
+  useApp.setState({ data: grown(9) });
+  await act(async () => {
+    expect(await useApp.getState().plantSeed("basil")).toBe(false);
+  });
+  expect(useApp.getState().data.garden).toHaveLength(1);
+  const today = screenIn(<Dashboard />);
+  const herbarium = within(screen.getByRole("region", { name: "Herbarium" }));
+  expect(herbarium.getByLabelText("9 of 10 completions")).toBeVisible();
+  expect(herbarium.queryByRole("button", { name: /seed/i })).toBeNull();
+  expect(document.querySelector(".tray-panel")).toBeNull();
+  today.unmount();
+
+  useApp.setState({ data: grown(10) });
+  const close = vi.fn();
+  const picker = render(
+    <SeedPicker
+      plant={gardenPlants(useApp.getState().data).at(-1)!}
+      close={close}
+    />,
+  );
+  expect(
+    screen.getByRole("heading", { name: "Pea Shoot is fully grown!" }),
+  ).toBeVisible();
+  expect(
+    screen.getByText(/10 completions grew 9 leaves and 1 flower\./),
+  ).toBeVisible();
+  expect(screen.getAllByRole("button", { name: /\d+ tasks/ })).toHaveLength(12);
+  await click(screen.getByRole("button", { name: /Basil 12 tasks/ }));
+  const restored = parseNotebook(
+    JSON.parse(JSON.stringify(useApp.getState().data)),
+  );
+  expect(restored.garden?.map(({ seed }) => seed)).toEqual(["pea", "basil"]);
+  picker.unmount();
+
+  screenIn(<Dashboard />);
+  expect(
+    within(screen.getByRole("region", { name: "Herbarium" })).getByLabelText(
+      "0 of 12 completions",
+    ),
+  ).toBeVisible();
+});
+
+it("shows each finished plant as a garden sheet whose blossoms stay inspectable", async () => {
+  const data = grown(10);
   useApp.setState({
     data: {
       ...data,
-      tasks: [habit],
-      garden: [{ seed: "pea", at, start: 0 }],
-      events: Array.from({ length: 10 }, (_, index) => ({
-        id: `garden-${index}`,
-        type: "completed",
-        at,
-        period: `round-${index}`,
-        taskId: habit.id,
-        taskTitle: habit.title,
-        roll: 0.1,
-        reward: index === 0 ? { id: "tea", title: "Tea break", size: "medium", active: true } : null,
-      })),
+      garden: [...data.garden, { seed: "basil", at: data.garden[0].at, start: 10 }],
     },
   });
-  render(
-    <MemoryRouter>
-      <WorkspaceContext.Provider value={workspace}>
-        <Dashboard />
-      </WorkspaceContext.Provider>
-    </MemoryRouter>,
+  screenIn(<Garden />);
+  expect(document.querySelector(".page-heading .lede")).toHaveTextContent(
+    "1 plant · 9 leaves · 1 flower",
   );
-  const herbarium = within(screen.getByRole("region", { name: "Herbarium" }));
-  expect(herbarium.getByText("10 / 10")).toBeVisible();
-  await click(herbarium.getByRole("button", { name: /Basil 12 tasks/ }));
-  expect(herbarium.getByText("0 / 12")).toBeVisible();
-  const restored = parseNotebook(JSON.parse(JSON.stringify(useApp.getState().data)));
-  expect(restored.garden?.map(({ seed }) => seed)).toEqual(["pea", "basil"]);
-  await click(herbarium.getByText("Garden", { selector: "summary" }));
-  await click(herbarium.getByRole("button", { name: /Pea Shoot/ }));
-  const blossom = herbarium.getByRole("button", { name: "Inspect flower 1" });
-  fireEvent.keyDown(blossom, { key: "Enter" });
-  expect(herbarium.getByText("Tea break · medium reward")).toBeVisible();
+  const sheets = within(screen.getByRole("list", { name: "Finished plants" }));
+  expect(sheets.getAllByRole("button")).toHaveLength(1);
+  await click(sheets.getByRole("button", { name: /^No\. 1, Pea Shoot, 9 leaves and 1 flower/ }));
+  const sheet = within(screen.getByRole("dialog", { name: "No. 1 · Pea Shoot" }));
+  expect(sheet.getByLabelText("10 of 10 completions")).toBeVisible();
+  fireEvent.keyDown(sheet.getByRole("button", { name: "Inspect flower 1" }), {
+    key: "Enter",
+  });
+  expect(sheet.getByText("Tea break · medium reward")).toBeVisible();
+  fireEvent.keyDown(sheet.getByRole("button", { name: "Inspect leaf 2" }), {
+    key: "Enter",
+  });
+  expect(sheet.getByText("No reward drawn")).toBeVisible();
+  expect(sheet.queryByText("Tea break · medium reward")).toBeNull();
 });

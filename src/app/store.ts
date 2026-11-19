@@ -1,4 +1,4 @@
-import { sow } from "../lib/garden/garden";
+import { gardenPlants, sow, starterPacket } from "../lib/garden/garden";
 import { create } from "zustand";
 import {
   Completion,
@@ -66,6 +66,7 @@ interface AppState {
   setTaskStatus: (id: string, status: Task["status"]) => Promise<void>;
   settle: () => Promise<void>;
   complete: (period: TaskPeriod) => Promise<void>;
+  plantSeed: (seed: string) => Promise<boolean>;
   skip: (period: TaskPeriod) => Promise<void>;
   snooze: (period: TaskPeriod) => Promise<void>;
   undo: (eventId: string) => Promise<void>;
@@ -357,7 +358,7 @@ export const useApp = create<AppState>((set, get) => ({
     );
     if (!event || get().storageError) return;
     if (!(await get().change((d) => {
-      const growing = d.garden?.length ? d : sow(d, "pea", event.at);
+      const growing = d.garden?.length ? d : sow(d, starterPacket.key, event.at);
       return { ...growing, events: [...growing.events, event] };
     }))) return;
     set({ reveal: event.roll === null ? null : event });
@@ -372,6 +373,11 @@ export const useApp = create<AppState>((set, get) => ({
             : "Done. No reward.",
       undo: () => get().undo(event.id),
     });
+  },
+  plantSeed: async (seed) => {
+    const data = get().data;
+    if (!gardenPlants(data).at(-1)?.finished) return false;
+    return get().change((notebook) => sow(notebook, seed, new Date().toISOString()));
   },
   skip: async (period) => {
     const d = get().data;

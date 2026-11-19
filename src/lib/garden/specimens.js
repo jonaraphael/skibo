@@ -530,6 +530,15 @@ export const seedPackets = ORDER.map((key) => ({
   capacity: SP[key].N,
 }));
 
+// A compact figure for garden sheets and seed packets, in a 160 x 168 box.
+export const drawFigure = (key, levels) =>
+  plant(key, {
+    x: 80, y: 150, fitW: 136, fitH: 132,
+    marks: levels.map((level) => ({ level })),
+    open: 0,
+    live: false,
+  });
+
 export const drawSpecimen = (key, levels, open, interactive, previous) =>
   plant(key, {
     x: 144, y: 186, fitW: 238, fitH: 164,

@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { useState } from "react";
 import { useApp } from "../app/store";
 import { TaskPeriod } from "../app/types";
@@ -13,7 +12,7 @@ import { useDailyTaskMessages } from "../components/useDailyTaskMessages";
 import { useWorkspace } from "../components/Workspace";
 import { dayKey, prettyDate } from "../lib/schedule/calendar";
 import { completedRepeat, periodFor } from "../lib/tasks/taxonomy";
-import { completions, trayRewards } from "../lib/rewards/engine";
+import { completions } from "../lib/rewards/engine";
 
 export const Dashboard = () => {
   const { data } = useApp();
@@ -45,7 +44,6 @@ export const Dashboard = () => {
     { bucket: "resting", label: "Not due yet" },
     { bucket: "repeat", label: "Run it back" },
   ];
-  const tray = trayRewards(data.events);
   const visible = periods
     .map((p) => finishing.get(p.task.id) ?? p)
     .filter((p) => p.bucket !== "done" && p.bucket !== "later");
@@ -164,53 +162,6 @@ export const Dashboard = () => {
         </div>
         <aside className="workspace-aside">
           <Herbarium open={open.length} />
-          {/* An empty tray shows nothing here; the Rewards nav badge carries
-              the count. */}
-          {tray.length > 0 && (
-            <section className="tray-panel">
-              <div className="panel-heading">
-                <p className="eyebrow">
-                  <i className="reward-dot" /> Tray
-                </p>
-                <span className="tray-count">{tray.length}</span>
-              </div>
-              <ul className="tray-preview">
-                {[...tray].reverse().map((e) => (
-                  <li key={e.id}>
-                    <strong>{e.reward!.title}</strong>
-                    <span>
-                      <Dotted
-                        items={[
-                          e.reward!.size,
-                          e.taskTitle,
-                          dayKey(new Date(e.at), data.preferences.dayStart) ===
-                          today
-                            ? "today"
-                            : prettyDate(
-                                dayKey(
-                                  new Date(e.at),
-                                  data.preferences.dayStart,
-                                ),
-                              ),
-                        ]}
-                      />
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <Link
-                className="button reward-button full-width"
-                to="/rewards/tray"
-              >
-                Open tray <Icon name="arrow" size={17} />
-              </Link>
-            </section>
-          )}
-          <section className="how-it-works">
-            <Link to="/rewards/record" className="text-link">
-              Odds and record <Icon name="arrow" size={15} />
-            </Link>
-          </section>
         </aside>
       </div>
     </>

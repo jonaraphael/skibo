@@ -1,147 +1,217 @@
 import { useEffect, useRef, useState } from "react";
-import { canEdit, useApp } from "../app/store";
-import { gardenPlants, sow } from "../lib/garden/garden";
-import { drawSpecimen, seedPackets } from "../lib/garden/specimens";
+import { useApp } from "../app/store";
+import { GardenPlant, gardenPlants, starterPacket } from "../lib/garden/garden";
+import { drawSpecimen } from "../lib/garden/specimens";
+import { useWorkspace } from "./Workspace";
 import "./Herbarium.css";
 
-const date = (value: string) => new Date(value).toLocaleDateString(undefined, {
-  month: "short", day: "numeric", year: "numeric",
-});
+export function specimenDate(value: string) {
+  const date = new Date(value);
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: date.getFullYear() === new Date().getFullYear() ? undefined : "numeric",
+  });
+}
 
+export function plantTally(plant: GardenPlant) {
+  const flowers = plant.growth.filter((event) => event.reward).length;
+  return { leaves: plant.growth.length - flowers, flowers };
+}
 
-export function Herbarium({ open }: { open: number }) {
-  const { data, change } = useApp();
-  const editable = useApp(canEdit);
-  const plants = gardenPlants(data);
-  const active = plants.at(-1);
-  const [specimen, setSpecimen] = useState<number | null>(null);
-  const [mark, setMark] = useState<string | null>(null);
-  const plant = plants.find((entry) => entry.sowing.start === specimen) ?? active;
-  const packet = plant?.packet ?? seedPackets.find((seed) => seed.key === "pea")!;
+const count = (n: number, noun: string) =>
+  `${n} ${n === 1 ? noun : noun === "leaf" ? "leaves" : `${noun}s`}`;
+export const tallyText = (plant: GardenPlant) => {
+  const { leaves, flowers } = plantTally(plant);
+  return `${count(leaves, "leaf")} and ${count(flowers, "flower")}`;
+};
+
+// One plant on its sheet. Selecting a leaf or flower shows the completion that
+// earned it beside the mark.
+export function Specimen({
+  plant,
+  number,
+  openTasks,
+}: {
+  plant?: GardenPlant;
+  number: number;
+  openTasks?: number;
+}) {
+  const reduceMotion = useApp((state) => state.data.preferences.reduceMotion);
+  const [mark, setMark] = useState<{
+    id: string;
+    x: number;
+    y: number;
+    below: boolean;
+  } | null>(null);
+  const figure = useRef<HTMLElement>(null);
+  const packet = plant?.packet ?? starterPacket;
   const growth = plant?.growth ?? [];
-  const selected = growth.find((event) => event.id === mark);
-  const previous = useRef({ start: plant?.sowing.start, count: growth.length });
-  const priorCount = previous.current.start === plant?.sowing.start &&
-    previous.current.count < growth.length ? previous.current.count : undefined;
+  const start = plant?.sowing.start;
+  const index = growth.findIndex((event) => event.id === mark?.id);
+  const selected = growth[index];
+  const previous = useRef({ start, count: growth.length });
+  const samePlant =
+    previous.current.start === start ||
+    (previous.current.start === undefined && packet === starterPacket);
+  const growing = openTasks !== undefined && !reduceMotion;
+  const priorCount =
+    growing && samePlant && previous.current.count < growth.length
+      ? previous.current.count
+      : undefined;
   useEffect(() => {
-    previous.current = { start: plant?.sowing.start, count: growth.length };
-  }, [plant?.sowing.start, growth.length]);
+    previous.current = { start, count: growth.length };
+  }, [start, growth.length]);
 
-  const showingActive = plant === active;
-  const motion = !data.preferences.reduceMotion && showingActive && !active?.finished;
   // The drawing contains only fixed species geometry and validated reward sizes.
   const drawing = drawSpecimen(
     packet.key,
     growth.map((event) => event.reward?.size),
-    showingActive ? open : 0,
+    openTasks ?? 0,
     true,
-    data.preferences.reduceMotion ? undefined : priorCount,
+    priorCount,
   );
+  useEffect(() => {
+    figure.current
+      ?.querySelectorAll("[data-selected]")
+      .forEach((slot) => slot.removeAttribute("data-selected"));
+    if (index >= 0)
+      figure.current
+        ?.querySelector(`[data-i="${index}"]`)
+        ?.setAttribute("data-selected", "");
+  }, [index, drawing]);
+
+  // A press anywhere off the sheet puts the note away.
+  useEffect(() => {
+    if (!mark) return;
+    const dismiss = (event: PointerEvent) => {
+      if (!figure.current?.contains(event.target as Node)) setMark(null);
+    };
+    document.addEventListener("pointerdown", dismiss);
+    return () => document.removeEventListener("pointerdown", dismiss);
+  }, [mark]);
 
   const inspect = (target: EventTarget) => {
     const slot = target instanceof Element ? target.closest("[data-i]") : null;
-    if (slot) setMark(growth[Number(slot.getAttribute("data-i"))]?.id ?? null);
-  };
-  const plantSeed = async (key: string) => {
-    const saved = await change((notebook) => {
-      const latest = gardenPlants(notebook).at(-1);
-      return !latest || latest.finished
-        ? sow(notebook, key, new Date().toISOString())
-        : notebook;
+    const event = slot && growth[Number(slot.getAttribute("data-i"))];
+    if (!slot || !event || event.id === mark?.id) return setMark(null);
+    const sheet = figure.current!.getBoundingClientRect();
+    const box = slot.getBoundingClientRect();
+    const below = box.top - sheet.top < 96;
+    setMark({
+      id: event.id,
+      x: Math.min(
+        Math.max(box.left + box.width / 2 - sheet.left, 112),
+        Math.max(112, sheet.width - 112),
+      ),
+      y: below ? box.bottom - sheet.top + 8 : box.top - sheet.top - 8,
+      below,
     });
-    if (saved) {
-      setSpecimen(null);
-      setMark(null);
-    }
   };
+  const dates = plant
+    ? plant.finished
+      ? `${specimenDate(plant.sowing.at)} – ${specimenDate(growth.at(-1)!.at)}`
+      : `sown ${specimenDate(plant.sowing.at)}`
+    : null;
 
   return (
-    <section className="herbarium" aria-labelledby="herbarium-title">
-      <header>
-        <h2 id="herbarium-title">Herbarium</h2>
-        <details className="garden-index">
-          <summary>Garden</summary>
-          {plants.some((entry) => entry !== active || entry.finished) ? (
-            <ul>
-              {plants.filter((entry) => entry !== active || entry.finished).map((entry) => (
-                <li key={entry.sowing.start}>
-                  <button type="button" className="text-link" onClick={() => {
-                    setSpecimen(entry.sowing.start);
-                    setMark(null);
-                  }}>
-                    {entry.packet.name} · {date(entry.sowing.at)}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : <p>Finished plants will appear here.</p>}
-        </details>
-      </header>
-      {!showingActive && (
-        <button type="button" className="text-link" onClick={() => {
-          setSpecimen(null);
+    <figure
+      className="specimen"
+      ref={figure}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && mark) {
+          event.preventDefault();
+          event.stopPropagation();
           setMark(null);
-        }}>Back to current plant</button>
-      )}
-      <figure>
-        <svg
-          className={`st-herb${motion ? " live" : ""}`}
-          viewBox="0 0 288 206"
-          role="group"
-          aria-label={`${packet.name} specimen`}
-          onClick={(event) => inspect(event.target)}
-          onKeyDown={(event) => {
-            if ((event.key === "Enter" || event.key === " ") &&
-                event.target instanceof Element && event.target.closest("[data-i]")) {
-              event.preventDefault();
-              inspect(event.target);
-            }
-          }}
-          dangerouslySetInnerHTML={{ __html: drawing }}
-        />
-        <figcaption>
-          <div>
-            <span className="eyebrow">
-              {plant ? `Sown ${date(plant.sowing.at)}` : "First specimen"}
-            </span>
-            <strong>{packet.name}</strong>
-          </div>
-          <span aria-label={`${growth.length} of ${packet.capacity} completions`}>
-            {growth.length} / {packet.capacity}
+        }
+      }}
+    >
+      <svg
+        className={`st-herb${growing && !plant?.finished ? " live" : ""}`}
+        viewBox="0 0 288 206"
+        role="group"
+        aria-label={`${packet.name} specimen`}
+        onClick={(event) => inspect(event.target)}
+        onKeyDown={(event) => {
+          if (
+            (event.key === "Enter" || event.key === " ") &&
+            event.target instanceof Element &&
+            event.target.closest("[data-i]")
+          ) {
+            event.preventDefault();
+            inspect(event.target);
+          }
+        }}
+        dangerouslySetInnerHTML={{ __html: drawing }}
+      />
+      <figcaption>
+        <div>
+          <span className="eyebrow">
+            No. {number}
+            {dates && ` · ${dates}`}
           </span>
-        </figcaption>
-      </figure>
-      <div aria-live="polite" className="specimen-note">
-        {selected ? (
-          <>
+          <strong>{packet.name}</strong>
+        </div>
+        <span
+          className="specimen-count"
+          aria-label={`${growth.length} of ${packet.capacity} completions`}
+        >
+          {growth.length}
+          <small> / {packet.capacity}</small>
+        </span>
+      </figcaption>
+      <div aria-live="polite">
+        {selected && mark && (
+          <div
+            className={`specimen-pop${mark.below ? " below" : ""}`}
+            style={{ left: mark.x, top: mark.y }}
+          >
             <strong>{selected.taskTitle}</strong>
-            <span>{new Date(selected.at).toLocaleString()}</span>
-            {selected.reward && <span>{selected.reward.title} · {selected.reward.size} reward</span>}
-          </>
-        ) : plant?.finished ? (
-          <span>Finished {date(growth.at(-1)!.at)}</span>
-        ) : growth.length ? (
-          <span>Select a leaf or flower to revisit the task.</span>
-        ) : (
-          <span>Complete a task to grow the first leaf.</span>
+            <span>
+              {new Date(selected.at).toLocaleString(undefined, {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </span>
+            {selected.reward ? (
+              <span className={`specimen-reward lv-${selected.reward.size}`}>
+                <i />
+                {selected.reward.title} · {selected.reward.size} reward
+              </span>
+            ) : (
+              <span>No reward drawn</span>
+            )}
+          </div>
         )}
       </div>
-      {showingActive && (!active || active.finished) && (
-        <details key={active?.sowing.start ?? "first"} open={active?.finished || undefined}>
-          <summary>Choose a seed packet</summary>
-          {active?.finished && <p>Sow your next seed to start growing again.</p>}
-          <div className="seed-packets">
-            {seedPackets.map((seed) => (
-              <button type="button" key={seed.key} disabled={!editable} onClick={() => void plantSeed(seed.key)}>
-                <svg aria-hidden="true" className="st-herb" viewBox="0 0 288 206"
-                  dangerouslySetInnerHTML={{ __html: drawSpecimen(seed.key, Array(seed.capacity).fill(undefined), 0, false) }} />
-                <strong>{seed.name}</strong>
-                <span>{seed.capacity} tasks</span>
-                <small>{seed.note}</small>
-              </button>
-            ))}
-          </div>
-        </details>
+    </figure>
+  );
+}
+
+export function Herbarium({ open }: { open: number }) {
+  const data = useApp((state) => state.data);
+  const { openSeedPicker } = useWorkspace();
+  const plants = gardenPlants(data);
+  const active = plants.at(-1);
+  return (
+    <section className="herbarium plant-art" aria-labelledby="herbarium-title">
+      <h2 id="herbarium-title">Herbarium</h2>
+      <Specimen
+        plant={active}
+        number={Math.max(1, plants.length)}
+        openTasks={open}
+      />
+      {active?.finished && (
+        <button
+          type="button"
+          className="button primary full-width"
+          onClick={openSeedPicker}
+        >
+          Choose the next seed
+        </button>
       )}
     </section>
   );

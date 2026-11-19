@@ -907,9 +907,10 @@ test("evidence strips update with rewards and undo, survive reload, and stay rea
       .filter({ hasText: after.title })
       .locator(".task-history-strip"),
   ).toHaveCount(0);
-  await expect(page.locator(".tray-preview")).toContainText(
-    "Record store visit",
-  );
+  await expect(page.locator(".tray-panel")).toHaveCount(0);
+  await expect(
+    page.locator(".nav-badge, .mobile-nav a i").filter({ visible: true }),
+  ).toHaveText("1");
   await noOverflow(page);
   await page.screenshot({
     path: testInfo.outputPath("evidence-today.png"),
@@ -1261,4 +1262,77 @@ test("every new-task dialog starts blank, including after cancelling or adding a
   await expect(editor).toHaveCount(0);
   await open();
   await expect(editor.getByRole("radio", { checked: true })).toHaveCount(0);
+});
+
+test("the last completion opens the seed picker after the reward, and the plant moves to the Garden", async ({
+  page,
+}) => {
+  const habit = { ...task({ start: "2026-11-01" }), title: "Stretch" };
+  const data = emptyNotebook();
+  data.onboarded = true;
+  data.preferences.reduceMotion = true;
+  data.tasks = [habit];
+  data.garden = [{ seed: "pea", at: "2026-11-01T12:00:00.000Z", start: 0 }];
+  for (let day = 1; day <= 9; day++) {
+    const date = `2026-11-0${day}`;
+    data.events.push({
+      id: `grow-${day}`,
+      type: "completed",
+      taskId: habit.id,
+      taskTitle: habit.title,
+      period: `${habit.id}:${date}:start:r1:unit:0`,
+      at: `${date}T17:00:00.000Z`,
+      roll: 0.9,
+      reward: null,
+    });
+  }
+  await seed(page, data);
+  await page.addInitScript(() => {
+    Crypto.prototype.getRandomValues = function <
+      T extends ArrayBufferView | null,
+    >(array: T): T {
+      if (array) new Uint8Array(array.buffer).fill(0);
+      return array;
+    };
+  });
+  await go(page);
+  const herbarium = page.getByRole("region", { name: "Herbarium" });
+  await expect(herbarium.getByLabel("9 of 10 completions")).toBeVisible();
+  await expect(page.getByRole("button", { name: /seed/i })).toHaveCount(0);
+  await expect(page.locator(".workspace-topbar")).toHaveCount(0);
+  await nav(page, "Garden");
+  await expect(
+    page.getByRole("heading", { name: "No finished plants yet." }),
+  ).toBeVisible();
+  await nav(page, "Today");
+
+  await page
+    .getByRole("button", { name: "Complete Stretch", exact: true })
+    .click();
+  const reveal = page.getByRole("dialog", { name: "Reward" });
+  const picker = page.getByRole("dialog", { name: "Choose a seed packet" });
+  await expect(reveal).toBeVisible();
+  await expect(picker).toHaveCount(0);
+  await reveal.getByRole("button", { name: "Keep in tray" }).click();
+  await expect(
+    picker.getByRole("heading", { name: "Pea Shoot is fully grown!" }),
+  ).toBeVisible();
+  await expect(picker.getByRole("button", { name: /\d+ tasks/ })).toHaveCount(
+    12,
+  );
+  await noOverflow(page);
+  await picker.getByRole("button", { name: /Fennel 18 tasks/ }).click();
+  await expect(picker).toHaveCount(0);
+  await expect(herbarium.getByLabel("0 of 18 completions")).toBeVisible();
+
+  await nav(page, "Garden");
+  const sheet = page.getByRole("button", {
+    name: /^No\. 1, Pea Shoot, 9 leaves and 1 flower/,
+  });
+  await expect(sheet).toBeVisible();
+  await noOverflow(page);
+  await sheet.click();
+  const specimen = page.getByRole("dialog", { name: "No. 1 · Pea Shoot" });
+  await specimen.getByRole("button", { name: "Inspect flower 10" }).click();
+  await expect(specimen.locator(".specimen-pop")).toContainText("Stretch");
 });

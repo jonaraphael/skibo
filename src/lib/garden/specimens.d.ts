@@ -13,3 +13,7 @@ export function drawSpecimen(
   interactive: boolean,
   previous?: number,
 ): string;
+export function drawFigure(
+  key: string,
+  levels: (RewardSize | undefined)[],
+): string;
