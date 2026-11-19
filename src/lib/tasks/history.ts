@@ -3,7 +3,7 @@ import { addDays, dayKey, liveEvents, matchesDay } from "../schedule/calendar";
 import { periodFor } from "../tasks/taxonomy";
 
 export type HistoryState =
-  "done" | "reward" | "skipped" | "open" | "late" | "missed";
+  "done" | "reward" | "skipped" | "open" | "missed";
 export interface HistoryDay {
   date: string;
   state: HistoryState;
@@ -58,9 +58,7 @@ export const taskHistory = (
           : task.status === "active" &&
               date === currentDate &&
               current.bucket !== "done"
-            ? current.bucket === "late"
-              ? "late"
-              : "open"
+            ? "open"
             : "missed";
     days.push({ date, state });
   }

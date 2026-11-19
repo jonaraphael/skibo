@@ -53,8 +53,8 @@ export const RewardReveal = () => {
     data.preferences.sound,
     data.preferences.reduceMotion,
   ]);
-  if (!reveal) return null;
-  if (!settled || !reveal.reward)
+  if (!reveal?.reward) return null;
+  if (!settled)
     return (
       <div className="roll-status" role="status">
         <span className="rolling-lamp" />

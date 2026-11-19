@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { Icon } from "../components/Icon";
 import { WorkspaceContext } from "../components/Workspace";
@@ -10,7 +10,7 @@ import { TaskEditor } from "../screens/TaskEditor";
 import { RewardEditor } from "../screens/RewardEditor";
 import { Welcome } from "../screens/Welcome";
 import { downloadBackup } from "../screens/Settings";
-import { trayRewards } from "../lib/rewards/engine";
+import { completions, trayRewards } from "../lib/rewards/engine";
 import { AppRoutes } from "./routes";
 import { canEdit, saveStatus, useApp } from "./store";
 import { Reward, Task } from "./types";
@@ -23,7 +23,9 @@ const navigation = [
 export const App = () => {
   const state = useApp();
   const location = useLocation();
-  const [now, setNow] = useState(new Date());
+  const [clockTick, setClockTick] = useState(0);
+  // A new round can open at the instant of completion, between clock ticks.
+  const now = useMemo(() => new Date(), [clockTick, state.data.events]);
   const [task, setTask] = useState<Task | null | undefined>();
   const [recoveryError, setRecoveryError] = useState("");
   const [confirmReset, setConfirmReset] = useState(false);
@@ -37,7 +39,37 @@ export const App = () => {
     void state.initialize();
   }, [state.initialize]);
   useEffect(() => {
-    const tick = () => setNow(new Date());
+    const undoCompletion = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.isComposing ||
+        event.repeat ||
+        event.key.toLowerCase() !== "z" ||
+        event.metaKey === event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      )
+        return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.closest("input, textarea, select, [role=textbox]"))
+      )
+        return;
+      if (document.querySelector("dialog[open]:not(.reveal-sheet)")) return;
+      const app = useApp.getState();
+      if (!canEdit(app) || !app.data.onboarded) return;
+      const last = completions(app.data.events).at(-1);
+      if (!last) return;
+      event.preventDefault();
+      void app.undo(last.id);
+    };
+    window.addEventListener("keydown", undoCompletion);
+    return () => window.removeEventListener("keydown", undoCompletion);
+  }, []);
+  useEffect(() => {
+    const tick = () => setClockTick((tick) => tick + 1);
     const interval = window.setInterval(tick, 30_000);
     window.addEventListener("focus", tick);
     document.addEventListener("visibilitychange", tick);

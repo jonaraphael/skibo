@@ -26,6 +26,11 @@ export type TaskType =
   | "Start date"
   | "Tank"
   | "Upkeep";
+export const isRepeatable = (task: Task) =>
+  task.schedule.kind !== "once" ||
+  (task.behavior.payoff === "more" &&
+    (task.behavior.cost === "cliff" || task.behavior.goal > 1));
+
 export const taskType = (
   schedule: Schedule,
   behavior: TaskBehavior,
@@ -141,18 +146,9 @@ export const periodFor = (
     opens = anchor;
     due = shift(anchor, s.every - (b.cost === "cliff" ? b.lead : 0), s.unit);
     date = dayKey(due, prefs.dayStart);
-    const idle = lastDone
-      ? dayKey(new Date(lastDone.at), prefs.dayStart)
-      : s.start;
-    const idleDays = Math.max(0, daysBetween(idle, today));
     if (type === "Practice") {
       due = null;
-      detail =
-        lastDone && idleDays === 0
-          ? `Last ${b.unitLabel} today`
-          : `${idleDays} idle day${idleDays === 1 ? "" : "s"}`;
     } else {
-      const overdue = Math.max(0, daysBetween(date, today));
       if (b.payoff === "accrues") {
         const rewardOpens = new Date(
           anchor.getTime() + (due.getTime() - anchor.getTime()) * b.opening,
@@ -163,8 +159,6 @@ export const periodFor = (
           ? `Due ${prettyDate(date)}`
           : `Due ${prettyDate(date)} · no draw before ${opensAt}`;
       } else detail = `Next ${b.unitLabel} due ${prettyDate(date)}`;
-      if (type === "Upkeep" && overdue > 0)
-        detail = `${overdue} day${overdue === 1 ? "" : "s"} past due`;
       if (b.cost === "cliff" && now >= due)
         hold = `Due ${prettyDate(date)} · complete one ${b.unitLabel} or declare a miss`;
     }
@@ -208,11 +202,7 @@ export const periodFor = (
     round = `${task.id}:${date}:start:r${task.rhythmRevision}`;
     opens = boundary(task, date!, prefs);
     due = opens;
-    const lost = Math.max(0, daysBetween(date!, today));
-    detail =
-      date! > today
-        ? `Starts ${prettyDate(date!)}`
-        : `${lost} day${lost === 1 ? "" : "s"} lost since ${prettyDate(date!)}`;
+    if (date > today) detail = `Starts ${prettyDate(date)}`;
   } else {
     let day = first(task);
     let opening = b.windowStart;
@@ -282,9 +272,7 @@ export const periodFor = (
       : snooze?.type === "snoozed" && snooze.until > today && !hold
         ? "later"
         : due && now >= due
-          ? dayKey(due, prefs.dayStart) < today
-            ? "late"
-            : "today"
+          ? "today"
           : "anytime";
   // A task finished today reads as done while its next round is in the
   // future or has reopened with no draw yet.
@@ -374,17 +362,6 @@ export const typeGloss: Record<TaskType, string> = {
   Upkeep: "A state that slips daily.",
 };
 
-const waitingCount: Record<TaskType, string> = {
-  Target: "",
-  Backlog: "units owed",
-  Lapse: "",
-  Practice: "idle days",
-  Deadline: "",
-  "Start date": "days lost",
-  Tank: "",
-  Upkeep: "days past due",
-};
-
 // The rules a task's answers produce, one line per consequence.
 export const ruleLines = (
   s: Schedule,
@@ -402,16 +379,16 @@ export const ruleLines = (
         : `${once ? "Once" : scheduleLabel(s)}, starting ${prettyDate(s.start)}.`;
   const draw =
     b.payoff === "more"
-      ? `30% chance for every ${b.unitLabel}.`
+      ? `One draw for every ${b.unitLabel}.`
       : s.kind === "after"
-        ? `30% chance once per round, from ${Math.round(b.opening * 100)}% of the interval on. Earlier completions restart the clock with no draw.`
-        : "30% chance once per round, late completions included.";
+        ? `One draw per round, from ${Math.round(b.opening * 100)}% of the interval on. Earlier completions restart the clock with no draw.`
+        : "One draw per round, even after the scheduled date.";
   const hold =
     type === "Target"
       ? `Any day you fall behind pace, until you do one ${b.unitLabel} or declare a miss. An unmet total closes as a miss.`
       : b.cost === "cliff"
         ? `From ${lead} before the real limit, until you complete it or declare a miss. A hold locks the whole tray; a declared miss forfeits that round's draw.`
-        : `None. The task shows its ${waitingCount[type]}.`;
+        : "None.";
   return [
     { label: "Due", text: due },
     { label: "Draw", text: draw },

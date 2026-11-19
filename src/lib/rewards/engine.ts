@@ -42,14 +42,28 @@ export const availableMix = (
   for (const size of sizes) mix[size] = total ? mix[size] / total : 0;
   return mix;
 };
+// Undo and re-check replay the same draw. Count distinct drawn units in the
+// journal, including reversed ones, to track which results someone has seen.
+function nextIntroductoryDraw(data: Notebook): number | null {
+  if (!data.introductoryDraws) return null;
+  const periods = new Set<string>();
+  for (const event of data.events) {
+    if (event.type !== "completed" || event.roll === null) continue;
+    periods.add(event.period);
+    if (periods.size === 3) return null;
+  }
+  return periods.size + 1;
+}
+
 export const drawReward = (
   effort: Effort,
   data: Notebook,
   now: Date,
   rng: RandomSource,
-): { roll: number; reward: Reward | null } => {
-  const roll = rng.float01();
-  if (roll >= HIT_RATE) return { roll, reward: null };
+): Pick<Completion, "roll" | "reward" | "noDrawReason"> => {
+  const intro = nextIntroductoryDraw(data);
+  const sample = rng.float01();
+  if (intro === null && sample >= HIT_RATE) return { roll: sample, reward: null };
   const week = weekStart(dayKey(now, data.preferences.dayStart));
   const wonBig = completions(data.events).filter(
     (e) =>
@@ -62,6 +76,13 @@ export const drawReward = (
     data.preferences.bigRewardCap === null ||
       wonBig < data.preferences.bigRewardCap,
   );
+  if (intro !== null) {
+    if (!Object.values(mix).some((weight) => weight > 0))
+      return { roll: null, reward: null, noDrawReason: "empty-menu" };
+    if (intro < 3)
+      return { roll: HIT_RATE + sample * (1 - HIT_RATE), reward: null };
+  }
+  const roll = intro === 3 ? sample * HIT_RATE : sample;
   const sizeRoll = rng.float01();
   let cumulative = 0;
   let size: RewardSize | null = null;

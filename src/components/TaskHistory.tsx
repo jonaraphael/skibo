@@ -9,7 +9,6 @@ const labels: Record<HistoryState, string> = {
   reward: "Completed with a reward",
   skipped: "Declared miss",
   open: "Open",
-  late: "Overdue",
   missed: "No completion",
 };
 

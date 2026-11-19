@@ -102,6 +102,8 @@ const isEvent = (e: unknown): e is JournalEvent => {
   if (e.type === "skipped" || e.type === "missed") return true;
   return (
     e.type === "completed" &&
+    (e.noDrawReason === undefined ||
+      (e.noDrawReason === "empty-menu" && e.roll === null)) &&
     (e.roll === null
       ? e.reward === null
       : typeof e.roll === "number" && e.roll >= 0 && e.roll < 1) &&
@@ -140,7 +142,8 @@ export const parseNotebook = (value: unknown): Notebook => {
     !unique(value.tasks) ||
     !unique(value.rewards) ||
     !unique(value.events) ||
-    typeof value.onboarded !== "boolean"
+    typeof value.onboarded !== "boolean" ||
+    (value.introductoryDraws !== undefined && value.introductoryDraws !== true)
   )
     throw new Error(
       "This isn't a valid Skibo backup. Your notebook has not been replaced.",

@@ -6,7 +6,7 @@ import {
 } from "../../app/types";
 import { liveEvents } from "../schedule/calendar";
 import { periodFor } from "./taxonomy";
-import { drawReward, trayRewards } from "../rewards/engine";
+import { drawReward } from "../rewards/engine";
 import { RandomSource } from "../rewards/rng";
 
 export const completePeriod = (
@@ -46,6 +46,7 @@ export const completePeriod = (
     at: now.toISOString(),
     roll: result.roll,
     reward: result.reward,
+    ...(result.noDrawReason && { noDrawReason: result.noDrawReason }),
   };
 };
 export const undoEvent = (
@@ -56,11 +57,5 @@ export const undoEvent = (
 ): JournalEvent | null => {
   const event = liveEvents(data.events).find((e) => e.id === target);
   if (!event || event.type === "undone" || event.type === "missed") return null;
-  if (
-    event.type === "completed" &&
-    event.reward &&
-    !trayRewards(data.events).some((e) => e.id === target)
-  )
-    return null;
   return { id, type: "undone", target, at: now.toISOString() };
 };

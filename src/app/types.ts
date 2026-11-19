@@ -48,6 +48,7 @@ export interface Completion {
   at: string;
   roll: number | null;
   reward: Reward | null;
+  noDrawReason?: "empty-menu";
 }
 export type JournalEvent =
   | Completion
@@ -94,13 +95,14 @@ export interface Notebook {
   events: JournalEvent[];
   preferences: Preferences;
   onboarded: boolean;
+  introductoryDraws?: true;
 }
 export interface TaskPeriod {
   task: Task;
   key: string;
   date: DateKey | null;
   time: string;
-  bucket: "late" | "today" | "anytime" | "later" | "done";
+  bucket: "today" | "anytime" | "later" | "done";
   round: string;
   drawEligible: boolean;
   hold: string | null;

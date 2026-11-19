@@ -36,7 +36,12 @@ export const liveEvents = (events: JournalEvent[]): JournalEvent[] => {
   const undone = new Set(
     events.filter((e) => e.type === "undone").map((e) => e.target),
   );
-  return events.filter((e) => e.type !== "undone" && !undone.has(e.id));
+  return events.filter(
+    (e) =>
+      e.type !== "undone" &&
+      !undone.has(e.id) &&
+      (e.type !== "enjoyed" || !undone.has(e.target)),
+  );
 };
 export const matchesDay = (schedule: Schedule, key: DateKey): boolean => {
   const start = schedule.start;

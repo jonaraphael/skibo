@@ -5,16 +5,21 @@ import { TaskPeriod } from "../app/types";
 import { Dotted, PageHeader, EmptyState } from "../components/Shared";
 import { Icon } from "../components/Icon";
 import { HoldNotice } from "../components/HoldNotice";
+import { DoneToday } from "../components/DoneToday";
 import { TaskRow } from "../components/TaskRow";
+import { useTaskListCompletion } from "../components/useTaskListCompletion";
+import { useDailyTaskMessages } from "../components/useDailyTaskMessages";
 import { useWorkspace } from "../components/Workspace";
 import { dayKey, prettyDate } from "../lib/schedule/calendar";
-import { periodFor } from "../lib/tasks/taxonomy";
+import { isRepeatable, periodFor } from "../lib/tasks/taxonomy";
 import { completions, trayRewards } from "../lib/rewards/engine";
 
 export const Dashboard = () => {
   const { data } = useApp();
   const { now, openTask } = useWorkspace();
   const [filter, setFilter] = useState("all");
+  const [showDone, setShowDone] = useState(false);
+  const { finishing, completeRow } = useTaskListCompletion();
   const today = dayKey(now, data.preferences.dayStart);
   const done = completions(data.events).filter(
     (e) => dayKey(new Date(e.at), data.preferences.dayStart) === today,
@@ -22,25 +27,29 @@ export const Dashboard = () => {
   const paid = done.filter((e) => e.reward).length;
   const periods = data.tasks
     .filter((t) => t.status === "active")
-    .map((t) => periodFor(t, data.events, now, data.preferences))
-    .filter(
-      (p) => p.bucket !== "done" || done.some((e) => e.taskId === p.task.id),
-    );
+    .map((t) => periodFor(t, data.events, now, data.preferences));
   // A restarted clock with no draw yet is completable but not due.
   const group = (p: TaskPeriod) =>
-    p.bucket === "anytime" && !p.drawEligible ? "resting" : p.bucket;
-  const open = periods.filter((p) =>
-    ["late", "today", "anytime"].includes(group(p)),
+    p.bucket === "anytime" && !p.drawEligible
+      ? "resting"
+      : isRepeatable(p.task)
+        ? "repeat"
+        : "once";
+  const open = periods.filter(
+    (p) =>
+      (p.bucket === "today" || p.bucket === "anytime") && group(p) !== "resting",
   );
-  const groups: { bucket: string; label: string }[] = [
-    { bucket: "late", label: "Overdue" },
-    { bucket: "today", label: "Today" },
-    { bucket: "anytime", label: "Anytime" },
+  const groups = [
+    { bucket: "once", label: "" },
+    { bucket: "repeat", label: "On repeat" },
     { bucket: "resting", label: "Not due yet" },
-    { bucket: "done", label: "Done" },
   ];
   const tray = trayRewards(data.events);
-  const filtered = periods.filter(
+  const visible = periods
+    .map((p) => finishing.get(p.task.id) ?? p)
+    .filter((p) => p.bucket !== "done" && p.bucket !== "later");
+  const messages = useDailyTaskMessages(today, visible);
+  const filtered = visible.filter(
     (p) => filter === "all" || p.task.effort === filter,
   );
   return (
@@ -54,7 +63,14 @@ export const Dashboard = () => {
         description={
           <Dotted
             items={[
-              `${done.length} done`,
+              <button
+                className="done-toggle"
+                aria-expanded={showDone}
+                aria-controls="done-today"
+                onClick={() => setShowDone((shown) => !shown)}
+              >
+                {done.length} done
+              </button>,
               `${paid} reward${paid === 1 ? "" : "s"}`,
               `${open.length} open`,
             ]}
@@ -70,7 +86,10 @@ export const Dashboard = () => {
       </PageHeader>
       <div className="workspace-columns">
         <div className="workspace-main">
-          <HoldNotice />
+          <section id="done-today" aria-label="Done today" hidden={!showDone}>
+            {showDone && <DoneToday entries={done} />}
+          </section>
+          <HoldNotice onComplete={completeRow} />
           <div className="list-heading">
             <h2>
               Tasks <span>{open.length}</span>
@@ -100,19 +119,27 @@ export const Dashboard = () => {
               return (
                 rows.length > 0 && (
                   <section key={bucket} className={`task-group ${bucket}`}>
-                    <div className="group-label">
-                      <h3>{label}</h3>
-                      <span>{rows.length}</span>
-                    </div>
+                    {label && (
+                      <div className="group-label">
+                        <h3>{label}</h3>
+                        <span>{rows.length}</span>
+                      </div>
+                    )}
                     {rows.map((p) => (
-                      <TaskRow key={p.task.id} period={p} />
+                      <TaskRow
+                        key={p.task.id}
+                        period={p}
+                        message={messages.get(p.task.id)}
+                        finishing={finishing.has(p.task.id)}
+                        onComplete={completeRow}
+                      />
                     ))}
                   </section>
                 )
               );
             })}
           </div>
-          {filtered.every((p) => p.bucket === "later") && (
+          {filtered.length === 0 && (
             <EmptyState
               title={
                 filter !== "all"
@@ -124,7 +151,9 @@ export const Dashboard = () => {
             >
               {filter !== "all"
                 ? "Try another filter or add a task."
-                : "Add a task to get started, or use Plan to see upcoming tasks."}
+                : data.tasks.length
+                  ? "See upcoming tasks in Plan."
+                  : "Add a task to get started."}
             </EmptyState>
           )}
           <button className="add-intention" onClick={() => openTask()}>
@@ -181,8 +210,7 @@ export const Dashboard = () => {
               <>
                 <h2>Nothing waiting.</h2>
                 <p>
-                  Each eligible completion has a 3 in 10 chance of a reward from
-                  your menu.
+                  Rewards you draw from your menu appear here.
                 </p>
                 <Link className="text-link" to="/rewards/menu">
                   Edit rewards <Icon name="arrow" size={16} />

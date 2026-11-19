@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
-import { Completion, Effort } from "../app/types";
-import { emptyNotebook } from "../lib/persistence/notebook";
+import { Completion, Effort, Notebook } from "../app/types";
+import { emptyNotebook, parseNotebook } from "../lib/persistence/notebook";
+import { liveEvents } from "../lib/schedule/calendar";
 import {
   availableMix,
   drawReward,
@@ -72,7 +73,38 @@ it("does not reroll an undone completion and rejects a stale double completion",
     at: now.toISOString(),
   });
   expect(trayRewards(data.events)).toHaveLength(0);
-  expect(undoEvent(data, redo.id, now, "undo-again")).toBeNull();
+  data.events.push(undoEvent(data, redo.id, now, "undo-again")!);
+  expect(liveEvents(data.events)).toHaveLength(0);
+  expect(trayRewards(data.events)).toHaveLength(0);
+  expect(() => parseNotebook(data)).not.toThrow();
+});
+
+it("awards the third distinct introductory draw across undo, reload, and an empty menu", () => {
+  const t = task({ kind: "after" });
+  t.behavior.payoff = "more";
+  let data: Notebook = { ...emptyNotebook(), tasks: [t], introductoryDraws: true };
+  const now = new Date("2026-11-15T12:00:00");
+  const check = (id: string, sample: number) => {
+    const period = periodFor(t, data.events, now, data.preferences);
+    const event = completePeriod(data, period, now, { float01: () => sample }, id)!;
+    data.events.push(event);
+    return event;
+  };
+  expect(check("one", 0).reward).toBeNull();
+  data.events.push(undoEvent(data, "one", now, "undo-one")!);
+  expect(check("redo-one", 0).reward).toBeNull();
+  expect(check("two", 0).reward).toBeNull();
+  const menu = data.rewards;
+  data.rewards = [];
+  expect(check("no-menu", 0.99)).toMatchObject({ roll: null, reward: null });
+  data.rewards = menu;
+  data = parseNotebook(JSON.parse(JSON.stringify(data)));
+  const win = check("three", 0.99);
+  expect(win.reward).not.toBeNull();
+  data.events.push(undoEvent(data, win.id, now, "undo-win")!);
+  expect(check("redo-win", 0).reward).toEqual(win.reward);
+  expect(check("four", 0.99).reward).toBeNull();
+  expect(check("five", 0).reward).not.toBeNull();
 });
 it("renormalizes missing sizes and respects the weekly big-reward cap", () => {
   const data = emptyNotebook();

@@ -18,13 +18,13 @@ describe("local calendar periods", () => {
     expect(dayKey(new Date("2026-03-08T03:30:00"), 4)).toBe("2026-03-07");
     expect(dayKey(new Date("2026-03-08T04:00:00"), 4)).toBe("2026-03-08");
   });
-  it("keeps one overdue period after weeks of inactivity and advances from the completion day", () => {
+  it("carries one period into Today after weeks of inactivity and advances from the completion day", () => {
     const data = emptyNotebook();
     data.tasks = [task()];
     const now = new Date("2026-03-08T14:00:00");
     const p = periodFor(data.tasks[0], [], now, data.preferences);
     expect(p.date).toBe("2026-01-31");
-    expect(p.bucket).toBe("late");
+    expect(p.bucket).toBe("today");
     const completed = completePeriod(
       data,
       p,

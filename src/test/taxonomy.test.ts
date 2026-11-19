@@ -167,9 +167,9 @@ describe("the eight task behaviors", () => {
     (type) => {
       const data = notebook(type);
       expect(activeHolds(data, at("30T12:00:00"))).toHaveLength(0);
-      expect(period(data, at("30T12:00:00")).detail).toMatch(
-        /owed|idle|lost|past due/,
-      );
+      const detail = period(data, at("30T12:00:00")).detail;
+      if (type === "Practice" || type === "Start date") expect(detail).toBe("");
+      else expect(detail).toMatch(/owed|Due /);
     },
   );
   it("Target releases behind-pace holds for one local day, then closes unmet totals as one automatic miss", () => {

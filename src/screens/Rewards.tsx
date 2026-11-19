@@ -157,7 +157,7 @@ export const Rewards = () => {
             >
               {showEnjoyed
                 ? "Rewards you mark as enjoyed appear here."
-                : "Complete a task to draw for a reward. Each eligible completion has a 30% chance of a reward when your menu has an eligible size."}
+                : "Complete a task to draw for a reward from your menu."}
             </EmptyState>
           )}
         </>
@@ -168,7 +168,7 @@ export const Rewards = () => {
             <Icon name="rewards" size={21} />
             <p>
               <strong>
-                Each eligible completion has a 3 in 10 chance of a reward.
+                Standard draws have a 3 in 10 chance of a reward.
               </strong>{" "}
               Task effort sets the size.
             </p>
@@ -339,7 +339,7 @@ export const Rewards = () => {
             <RecordChart events={filtered} />
             <p className="quiet-note">
               One step for every completion. A flower for every reward. The
-              chance on each new roll is 30%; your observed rate will vary.
+              standard reward chance is 30%. Your observed rate will vary.
             </p>
           </section>
           <div className="group-label">
@@ -358,7 +358,9 @@ export const Rewards = () => {
                     {e.reward
                       ? e.reward.title
                       : e.roll === null
-                        ? "Clock restarted · no draw"
+                        ? e.noDrawReason === "empty-menu"
+                          ? "No eligible rewards · no draw"
+                          : "Clock restarted · no draw"
                         : "No reward"}
                   </p>
                 </div>

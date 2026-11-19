@@ -486,6 +486,20 @@ textarea {
 .page-heading .lede {
   margin-top: 10px;
 }
+.done-toggle {
+  padding: 2px 0;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.done-toggle:hover,
+.done-toggle[aria-expanded="true"] {
+  color: var(--green);
+}
+#done-today {
+  margin-bottom: 24px;
+}
 .page-heading .button {
   flex-shrink: 0;
 }
@@ -627,9 +641,6 @@ textarea {
 .task-group {
   margin-bottom: 8px;
 }
-.task-group.late .group-label {
-  color: var(--late);
-}
 .task-row {
   display: flex;
   align-items: center;
@@ -663,7 +674,22 @@ textarea {
   background: var(--green);
   border-color: var(--green);
   color: var(--paper);
-  opacity: 0.7;
+  opacity: 1;
+}
+.task-row.finishing {
+  animation: task-complete 450ms ease-in forwards;
+}
+.finishing .complete-button path {
+  stroke-dasharray: 22;
+  animation: draw-check 150ms ease-out both;
+}
+@keyframes draw-check {
+  from { stroke-dashoffset: 22; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes task-complete {
+  0%, 45% { opacity: 1; }
+  100% { opacity: 0; }
 }
 .task-copy {
   padding: 0;
@@ -696,16 +722,6 @@ textarea {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
-  opacity: 0.8;
-}
-.late-text {
-  color: var(--late);
-}
-.done .task-title {
-  text-decoration: line-through;
-  color: var(--muted);
-}
-.done .task-meta {
   opacity: 0.8;
 }
 .effort-pips {
@@ -2720,13 +2736,9 @@ html[data-motion="reduce"] *::after {
   -webkit-mask-image: var(--mark-flower);
   mask-image: var(--mark-flower);
 }
-.history-cell.open,
-.history-cell.late {
+.history-cell.open {
   -webkit-mask-image: var(--mark-leaf-open);
   mask-image: var(--mark-leaf-open);
-}
-.history-cell.late {
-  background: var(--late);
 }
 /* No completion: bare stem with a node. Skipped: a closed bud. */
 .history-cell.missed,
@@ -2749,12 +2761,6 @@ html[data-motion="reduce"] *::after {
   color: var(--muted);
   min-width: 34px;
   text-align: right;
-}
-.task-outcome {
-  color: var(--amber-ink);
-}
-.task-outcome .reward-dot {
-  margin-right: 5px;
 }
 .tray-preview {
   list-style: none;

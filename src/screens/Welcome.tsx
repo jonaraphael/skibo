@@ -146,7 +146,16 @@ export const Welcome = () => {
     }
   };
   const addHabits = async () => {
-    if (!(await change((d) => ({ ...d, onboarded: true })))) return;
+    const saved = await change((d) => ({
+      ...d,
+      onboarded: true,
+      introductoryDraws: d.events.some(
+        (e) => e.type === "completed" && e.roll !== null,
+      )
+        ? d.introductoryDraws
+        : true,
+    }));
+    if (!saved) return;
     navigate("/plan");
     openTask();
   };
@@ -310,9 +319,8 @@ export const Welcome = () => {
               </fieldset>
               {mix && (
                 <p className="schedule-echo" role="status">
-                  Each eligible completion has a{" "}
-                  <strong>30% chance of a reward.</strong> When you win with
-                  this effort:{" "}
+                  <strong>Standard draws have a 30% chance of a reward.</strong>{" "}
+                  When you win with this effort:{" "}
                   {tiers
                     .map(
                       (tier) =>

@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { completions } from "../lib/rewards/engine";
 import { useApp } from "../app/store";
 import { PageHeader, EmptyState } from "../components/Shared";
 import { TaskRow } from "../components/TaskRow";
+import { useTaskListCompletion } from "../components/useTaskListCompletion";
+import { useDailyTaskMessages } from "../components/useDailyTaskMessages";
 import { Icon } from "../components/Icon";
 import { useWorkspace } from "../components/Workspace";
 import {
@@ -17,6 +18,7 @@ import { periodFor } from "../lib/tasks/taxonomy";
 
 export const Plan = () => {
   const { data } = useApp();
+  const { finishing, completeRow } = useTaskListCompletion();
   const { now, openTask } = useWorkspace();
   const today = dayKey(now, data.preferences.dayStart);
   const [mode, setMode] = useState("week");
@@ -30,21 +32,15 @@ export const Plan = () => {
   const periods = tasks.map((t) =>
     periodFor(t, data.events, now, data.preferences),
   );
+  const todayPeriods = periods.map((p) => finishing.get(p.task.id) ?? p);
   const onDay = (date: string) =>
-    periods.filter((p) => {
+    (date === today ? todayPeriods : periods).filter((p) => {
       if (p.task.status !== "active") return false;
       if (
         p.bucket === "done" &&
         (date === today || p.task.schedule.kind === "once")
       )
-        return (
-          date === today &&
-          completions(data.events).some(
-            (e) =>
-              e.taskId === p.task.id &&
-              dayKey(new Date(e.at), data.preferences.dayStart) === today,
-          )
-        );
+        return false;
       if (p.bucket === "anytime" && date === today) return true;
       if (!p.date) return date === today;
       if (p.date <= today && date === today) return true;
@@ -60,6 +56,8 @@ export const Plan = () => {
     mode === "all"
       ? periods.filter((p) => status === "all" || p.task.status === status)
       : onDay(selected);
+  const managing = mode === "all" || selected !== today;
+  const messages = useDailyTaskMessages(today, managing ? [] : rows);
   const move = (delta: number) => {
     setWeek(addDays(week, delta));
     setSelected(addDays(selected, delta));
@@ -184,7 +182,12 @@ export const Plan = () => {
           <TaskRow
             key={p.task.id}
             period={p}
-            management={mode === "all" || selected !== today}
+            management={managing}
+            message={messages.get(p.task.id)}
+            finishing={
+              mode === "week" && selected === today && finishing.has(p.task.id)
+            }
+            onComplete={completeRow}
           />
         ))}
         {rows.length === 0 && (

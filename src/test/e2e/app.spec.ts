@@ -159,10 +159,18 @@ test("first task, reward, undo, saved roll, menu, record, and reload", async ({
   await expect(
     page.getByRole("article").filter({ hasText: "Take a little walk" }),
   ).toHaveCount(1);
+  const walkAgain = page.getByRole("button", { name: "Complete Take a little walk", exact: true });
+  const reveal = page.getByRole("dialog", { name: "Reward" });
+  for (const n of [1, 2]) {
+    await walkAgain.click();
+    await expect(walkAgain).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeVisible();
+    await expect(reveal).toHaveCount(0);
+    await expect(page.locator(".task-meta").filter({ hasText: `Completed ${n} ${n === 1 ? "time" : "times"} today` })).toBeVisible();
+  }
   await page
     .getByRole("button", { name: "Complete Take a little walk", exact: true })
     .click();
-  const reveal = page.getByRole("dialog", { name: "Reward" });
   await expect(
     reveal.getByRole("heading", {
       name: "Fancy coffee at your favorite local café",
@@ -204,7 +212,7 @@ test("first task, reward, undo, saved roll, menu, record, and reload", async ({
   await expect(
     page.getByRole("heading", { name: "Your cumulative record" }),
   ).toBeVisible();
-  await expect(page.getByText("1 of 1 draws", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 of 3 draws", { exact: true })).toBeVisible();
   await noOverflow(page);
   await page.screenshot({
     path: testInfo.outputPath("record.png"),
@@ -440,7 +448,7 @@ test("snooze and skip are reversible without consuming a reward roll", async ({
   await expect(page.getByText("0 of 0 draws", { exact: true })).toBeVisible();
 });
 
-test("paused row menus stay above following rows and completed tasks offer keyboard undo", async ({
+test("paused row menus fit the screen and completed tasks can be undone from Plan", async ({
   page,
 }, testInfo) => {
   const data = {
@@ -509,18 +517,134 @@ test("paused row menus stay above following rows and completed tasks offer keybo
   await expect(
     page.getByRole("button", { name: "Undo", exact: true }),
   ).toHaveCount(0, { timeout: 7000 });
-  const undo = page.getByRole("button", {
-    name: "Undo First paused task",
-    exact: true,
-  });
+  await expect(page.getByRole("article")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Tasks 0" })).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "No tasks due." }),
+  ).toBeVisible();
+  await nav(page, "Plan");
+  await expect(page.getByRole("article")).toHaveCount(0);
+  await page.getByRole("button", { name: "All tasks", exact: true }).click();
+  await page.getByLabel("Actions for First paused task").click();
+  const undo = page.getByRole("button", { name: "Undo last completion" });
   await undo.focus();
   await undo.press("Enter");
+  await nav(page, "Today");
   await expect(
     page.getByRole("button", {
       name: "Complete First paused task",
       exact: true,
     }),
   ).toBeEnabled();
+});
+
+test("carried tasks check off and a completion clock returns when it reopens today", async ({
+  page,
+}) => {
+  const hourly = {
+    ...task({ kind: "after", every: 2, unit: "hours", start: "2026-11-14" }),
+    id: "water",
+    title: "Water seedlings",
+  };
+  await seed(page, {
+    ...emptyNotebook(),
+    onboarded: true,
+    tasks: [task({ start: "2026-11-14" }), hourly],
+    rewards: [],
+  });
+  await go(page);
+  const group = page.locator(".task-group").filter({
+    has: page.getByRole("heading", { name: "On repeat", exact: true }),
+  });
+  await expect(page.getByRole("heading", { name: /^(Today|Anytime)$/ })).toHaveCount(0);
+  await expect(group.getByRole("article")).toHaveCount(2);
+  const walk = group.getByRole("article").filter({ hasText: "Take a walk" });
+  const message = await walk.locator(".task-meta").innerText();
+  expect(message.trim()).toBeTruthy();
+  expect(message).not.toMatch(/idle days?|Available since|Completed 0/i);
+  await expect(group.locator(".task-meta").filter({ hasText: message })).toHaveCount(1);
+  await expect(group.getByRole("img", { name: /Nov 14: Open/ })).toBeVisible();
+  await expect(group).not.toContainText(/overdue|past due/i);
+  await group.getByRole("button", { name: "Complete Take a walk" }).click();
+  const checked = group.getByRole("button", { name: "Completed Take a walk" });
+  await expect(checked).toBeDisabled();
+  await expect(group.getByRole("article")).toHaveCount(1);
+  const summary = page.getByRole("button", { name: "1 done", exact: true });
+  await expect(summary).toHaveAttribute("aria-expanded", "false");
+  await summary.click();
+  const history = page.getByRole("region", { name: "Done today" });
+  await expect(history.getByRole("article")).toHaveCount(1);
+  await expect(history).toContainText("Take a walk");
+  await summary.click();
+  await expect(history).toHaveCount(0);
+  await page.reload();
+  await page.getByRole("button", { name: "1 done", exact: true }).click();
+  await history.getByRole("button", { name: "Undo last completion" }).click();
+  await expect(history).toContainText("No completions yet today.");
+  await expect(walk.locator(".task-meta")).toHaveText(message);
+  await page.getByRole("button", { name: "0 done", exact: true }).click();
+  await walk.getByRole("button", { name: "Complete Take a walk" }).click();
+
+  await nav(page, "Plan");
+  await page.getByRole("button", { name: "Complete Water seedlings" }).click();
+  await expect(page.getByRole("article")).toHaveCount(0);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await page.getByRole("button", { name: "Complete Water seedlings" }).click();
+  await nav(page, "Today");
+  await expect(page.getByRole("heading", { name: "Tasks 0" })).toBeVisible();
+  await expect(page.getByRole("article")).toHaveCount(0);
+
+  // This clock's next draw opens halfway through its two-hour interval.
+  await page.clock.setFixedTime(new Date("2026-11-15T13:00:00-05:00"));
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page.getByRole("article")).toHaveCount(1);
+  await expect(
+    page.getByRole("button", { name: "Complete Water seedlings" }),
+  ).toBeEnabled();
+  await expect(page.locator(".task-meta")).toContainText("Completed 1 time today");
+});
+
+test("keyboard undo preserves text edits and can reverse an enjoyed reward after reload", async ({
+  page,
+}) => {
+  const data = emptyNotebook();
+  const t = task({ kind: "after", start: "2026-11-01" });
+  t.behavior.payoff = "more";
+  data.tasks = [t];
+  data.onboarded = true;
+  data.events = [0, 1].map((i) => ({
+    id: `check-${i}`,
+    type: "completed",
+    taskId: t.id,
+    taskTitle: t.title,
+    period: `${t.id}:after:${i}:r1:unit:0`,
+    at: `2026-11-15T1${i}:00:00-05:00`,
+    roll: i ? 0.1 : 0.9,
+    reward: i ? data.rewards[0] : null,
+  }));
+  data.events.push({
+    id: "enjoy", type: "enjoyed", target: "check-1",
+    at: "2026-11-15T11:05:00-05:00",
+  });
+  await seed(page, data);
+  await go(page, "/plan");
+  const search = page.getByRole("textbox", { name: "Search tasks" });
+  await search.fill("walk");
+  await search.press("Meta+z");
+  await nav(page, "Today");
+  await page.getByRole("button", { name: "2 done", exact: true }).click();
+  const history = page.getByRole("region", { name: "Done today" });
+  await expect(history.getByRole("article")).toHaveCount(2);
+  await expect(history.getByRole("article").first()).toContainText(data.rewards[0].title);
+  await page.reload();
+  await expect(page.getByRole("button", { name: "2 done", exact: true })).toBeVisible();
+  await page.keyboard.press("Meta+z");
+  await expect(page.getByRole("button", { name: "1 done", exact: true })).toBeVisible();
+  await expect(page.locator(".page-heading")).toContainText("0 rewards");
+  await page.keyboard.press("Control+z");
+  await expect(page.getByRole("button", { name: "0 done", exact: true })).toBeVisible();
+  await expect(page.locator(".task-meta")).not.toContainText("Completed");
 });
 
 test("invalid dates and intervals cannot corrupt the saved notebook", async ({
@@ -639,6 +763,7 @@ test("evidence strips update with rewards and undo, survive reload, and stay rea
   });
   await go(page);
   const row = page.getByRole("article").filter({ hasText: writing.title });
+  await expect(row.locator(".task-meta")).not.toContainText("Every day");
   await expect(row.locator(".history-cell")).toHaveCount(14);
   await expect(
     row.getByRole("img", {
@@ -674,10 +799,12 @@ test("evidence strips update with rewards and undo, survive reload, and stay rea
       name: /^11 of the last 14 scheduled days completed/,
     }),
   ).toBeVisible();
-  await expect(row.locator(".task-meta")).not.toContainText("Every day");
+  await expect(
+    page.locator(".task-row").filter({ hasText: writing.title }),
+  ).toHaveCount(0);
   await noOverflow(page);
   await page.screenshot({ path: testInfo.outputPath("evidence-reward.png") });
-  await reveal.getByRole("button", { name: "Undo", exact: true }).click();
+  await page.keyboard.press("Meta+z");
   await expect(
     row.getByRole("img", {
       name: /^10 of the last 14 scheduled days completed/,
@@ -802,9 +929,9 @@ test("setup derives Tank, early resets take no draw, and repeated practice stays
   await expect(
     page.getByRole("dialog", { name: "Reward", exact: true }),
   ).toHaveCount(0);
-  // The early reset reads as done today, and stays undoable.
+  await expect(page.getByRole("article")).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: "Undo Water plants", exact: true }),
+    page.getByRole("button", { name: "Undo", exact: true }),
   ).toBeEnabled();
   await nav(page, "Rewards");
   await page

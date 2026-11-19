@@ -361,7 +361,9 @@ export const useApp = create<AppState>((set, get) => ({
     get().notify({
       message:
         event.roll === null
-          ? "Done. Clock restarted; too early for a draw."
+          ? event.noDrawReason === "empty-menu"
+            ? "Done. No eligible rewards for a draw."
+            : "Done. Clock restarted; too early for a draw."
           : event.reward
             ? "Done. Reward earned."
             : "Done. No reward.",

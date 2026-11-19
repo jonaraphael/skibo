@@ -2,11 +2,11 @@
 
 Do what you want to do more often.
 
-Add a task, choose rewards that matter to you, and build a record of your effort. Each eligible completion gets a 30% reward roll. Wins stay in your tray until you enjoy them.
+Add a task, choose rewards that matter to you, and build a record of your effort. Eligible completions draw from your reward menu. Standard draws have a 30% win chance. Wins stay in your tray until you enjoy them.
 
 New notebooks come with 177 personal reward ideas, from good coffee and garden upgrades to climbing gear and time off, with big rewards capped at one per week by default. The walkthrough connects a habit that's hard to start with reward examples at every tier, lets you add your own, and finishes by inviting you to write down more habits.
 
-- **Today:** one row per task, grouped into overdue, today, anytime, and done, with need counts and tray holds.
+- **Today:** open tasks, including anything carried forward, with counts and tray holds. Completing a task briefly checks the row and fades it away. Recurring and multi-unit tasks appear under **On repeat** and show their completion count after the first check of the day. Select the done count beneath the date to see today’s completions.
 - **Plan:** a week forecast, task search, and active/paused/archived tasks.
 - **Rewards:** your tray, an editable menu, payout forecasts, and the full completion record.
 - **Your rhythm:** local dates, a custom day-start hour, light/dark/system themes, reduced motion, optional sound, and a weekly cap on big rewards.
@@ -21,11 +21,11 @@ Task setup asks three questions: does a second session today count, does a calen
 | Target | Every unit until the deadline | Behind the daily straight-line pace; the first unit each local day releases it for that day |
 | Backlog | Every unit owed; calendar rounds add units to the pile | Never; shows units owed |
 | Lapse | Every unit | At the app due time, ahead of the real limit |
-| Practice | Every session | Never; shows idle days |
+| Practice | Every session | Never |
 | Deadline | Once per window, from opening through late completion | At the app due time, ahead of the real deadline |
-| Start date | Once per round, from its start date onward | Never; shows days lost |
+| Start date | Once per round, from its start date onward | Never |
 | Tank | From halfway to the app due time | At the app due time, ahead of the real limit |
-| Upkeep | From halfway to due | Never; shows days past due |
+| Upkeep | From halfway to due | Never; shows due date |
 
 Tank and Upkeep can be completed early: that restarts the clock and records a completion without taking a draw. The halfway fraction is adjustable. Safety margins place holds before a real limit. A hold locks enjoyment of the whole tray, including newly earned rewards. Completion or a declared miss releases that task's hold; a miss forfeits the rest of the round's draws and stays in the record. Multiple holds must all be resolved. Paused and archived tasks do not hold the tray. Snoozing cannot bypass a hold.
 
@@ -33,7 +33,7 @@ Target windows close at their real deadline (the end of the local day when no ti
 
 Calendar tasks that pay once per round show up to 14 scheduled days, oldest to newest: a leaf for a completion, a flower for a reward, an outline for the open period, and a bare stem for no completion. Late and snoozed completions fill the original calendar day; undo removes that mark. One-off, completion-clock, and multi-unit tasks have no calendar strip. Schedule edits recompute the strip; the full action record remains unchanged.
 
-The hit probability is fixed at 0.30. On a winning roll, the size weights are:
+The standard hit probability is 0.30. On a winning roll, the size weights are:
 
 | Effort | Small | Medium | Big |
 | ------ | ----: | -----: | --: |
@@ -43,7 +43,7 @@ The hit probability is fixed at 0.30. On a winning roll, the size weights are:
 
 Missing, paused, or capped sizes are removed and the remaining weights are normalized. The Menu shows the current effective mix. If there is no eligible reward, completion still counts and no reward is awarded. The observed payout rate will vary. Undoing then redoing the same unit reuses its original draw, including its reward snapshot. An early completion stays a no-draw result on redo.
 
-Completion, declared miss, snooze, and enjoyment actions have a five-second undo; hovering or focusing the notification keeps it available. Completed rows also offer an Undo button. The countdown waits while the reward reveal is open. On touch devices, swipe a task left to move it to tomorrow, or right to declare a miss. The same actions are available in each row's menu.
+Completion, declared miss, snooze, and enjoyment actions have a five-second undo; hovering or focusing the notification keeps it available. Press Command-Z (Ctrl-Z on Windows or Linux) to undo the latest completion and its draw, including a reward already marked enjoyed. The shortcut works after the notification closes. You can also undo a task’s last completion from its menu in Plan → All tasks. The countdown waits while the reward reveal is open. On touch devices, swipe a task left to move it to tomorrow, or right to declare a miss. The same actions are available in each row's menu.
 
 ## Development
 

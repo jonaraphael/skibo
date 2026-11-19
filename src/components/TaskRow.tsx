@@ -1,26 +1,33 @@
 import { useRef, useState } from "react";
 import { TaskPeriod } from "../app/types";
 import { canEdit, useApp } from "../app/store";
-import { scheduleLabel } from "../lib/schedule/calendar";
+import { dayKey, scheduleLabel } from "../lib/schedule/calendar";
 import { Dotted, EffortPips } from "./Shared";
 import { useWorkspace } from "./Workspace";
 import { Icon } from "./Icon";
 import { completions } from "../lib/rewards/engine";
-import { taskType } from "../lib/tasks/taxonomy";
+import { isRepeatable, taskType } from "../lib/tasks/taxonomy";
 import { TaskHistory } from "./TaskHistory";
 
 export const TaskRow = ({
   period,
   management = false,
+  finishing = false,
+  message,
+  onComplete,
 }: {
   period: TaskPeriod;
   management?: boolean;
+  finishing?: boolean;
+  message?: string;
+  onComplete?: (p: TaskPeriod) => void;
 }) => {
   const { task, bucket } = period;
-  const { openTask } = useWorkspace();
+  const { openTask, now } = useWorkspace();
   const complete = useApp((s) => s.complete);
   const undo = useApp((s) => s.undo);
   const events = useApp((s) => s.data.events);
+  const dayStart = useApp((s) => s.data.preferences.dayStart);
   const skip = useApp((s) => s.skip);
   const snooze = useApp((s) => s.snooze);
   const status = useApp((s) => s.setTaskStatus);
@@ -29,17 +36,30 @@ export const TaskRow = ({
   const [menuAbove, setMenuAbove] = useState(false);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const swiped = useRef(false);
-  const lastCompletion = completions(events)
-    .filter((e) => e.taskId === task.id)
-    .at(-1);
+  const history = completions(events).filter((e) => e.taskId === task.id);
+  const lastCompletion = history.at(-1);
+  const today = dayKey(now, dayStart);
+  const count =
+    !management && isRepeatable(task)
+      ? history.filter((e) => dayKey(new Date(e.at), dayStart) === today).length
+      : 0;
   const actionable =
     !management &&
+    !finishing &&
     task.status === "active" &&
     bucket !== "done" &&
     bucket !== "later";
   const meta = management
-    ? `${taskType(task.schedule, task.behavior)} · ${scheduleLabel(task.schedule)}${task.status !== "active" ? ` · ${task.status}` : ""}`
-    : period.detail;
+    ? [
+        taskType(task.schedule, task.behavior),
+        scheduleLabel(task.schedule),
+        ...(task.status === "active" ? [] : [task.status]),
+      ]
+    : [
+        message,
+        count > 0 && `Completed ${count} ${count === 1 ? "time" : "times"} today`,
+        period.detail,
+      ].filter(Boolean);
   const act = (fn: () => void) => {
     menu.current?.querySelector("summary")?.focus();
     fn();
@@ -47,7 +67,7 @@ export const TaskRow = ({
   };
   return (
     <article
-      className={`task-row ${bucket === "done" && !management ? "done" : ""} ${task.status !== "active" ? "inactive" : ""}`}
+      className={`task-row ${finishing ? "finishing" : ""} ${task.status !== "active" ? "inactive" : ""}`}
       onTouchStart={(e) => {
         touch.current = null;
         swiped.current = false;
@@ -77,19 +97,12 @@ export const TaskRow = ({
     >
       {!management && (
         <button
-          className={`complete-button ${bucket === "done" ? "checked" : ""}`}
-          aria-label={`${bucket === "done" ? "Undo" : "Complete"} ${task.title}`}
-          disabled={
-            !!storageError ||
-            (bucket === "done" ? !lastCompletion : !actionable)
-          }
-          onClick={() =>
-            bucket === "done" && lastCompletion
-              ? undo(lastCompletion.id)
-              : complete(period)
-          }
+          className={`complete-button ${finishing ? "checked" : ""}`}
+          aria-label={`${finishing ? "Completed" : "Complete"} ${task.title}`}
+          disabled={storageError || !actionable}
+          onClick={() => (onComplete ?? complete)(period)}
         >
-          {bucket === "done" && <Icon name="check" size={17} />}
+          {finishing && <Icon name="check" size={17} />}
         </button>
       )}
       {management && (
@@ -112,32 +125,11 @@ export const TaskRow = ({
         }}
       >
         <span className="task-title">{task.title}</span>
-        <span
-          className={`task-meta ${bucket === "late" && !management ? "late-text" : ""}`}
-        >
-          {bucket === "done" && !management && lastCompletion ? (
-            <Dotted
-              items={[
-                new Date(lastCompletion.at).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }),
-                lastCompletion.reward ? (
-                  <span className="task-outcome">
-                    <i className="reward-dot" />
-                    {lastCompletion.reward.title}
-                  </span>
-                ) : lastCompletion.roll === null ? (
-                  "clock restarted · no draw"
-                ) : (
-                  "no reward"
-                ),
-              ]}
-            />
-          ) : (
-            <Dotted items={[meta]} />
-          )}
-        </span>
+        {meta.length > 0 && (
+          <span className="task-meta">
+            <Dotted items={meta} />
+          </span>
+        )}
         {period.hold && !management && (
           <span className="task-hold">Holding the reward tray</span>
         )}
@@ -178,7 +170,7 @@ export const TaskRow = ({
           <button onClick={() => act(() => openTask(task))}>
             Edit task & history
           </button>
-          {lastCompletion && bucket !== "done" && (
+          {lastCompletion && (
             <button
               disabled={!!storageError}
               onClick={() => act(() => undo(lastCompletion.id))}

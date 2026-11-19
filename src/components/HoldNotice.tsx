@@ -1,8 +1,13 @@
 import { canEdit, useApp } from "../app/store";
 import { activeHolds } from "../lib/tasks/taxonomy";
 import { useWorkspace } from "./Workspace";
+import { TaskPeriod } from "../app/types";
 
-export const HoldNotice = () => {
+export const HoldNotice = ({
+  onComplete,
+}: {
+  onComplete?: (p: TaskPeriod) => void;
+}) => {
   const { data, complete, skip } = useApp();
   const disabled = useApp((s) => !canEdit(s));
   const { now } = useWorkspace();
@@ -31,7 +36,7 @@ export const HoldNotice = () => {
                 className="button secondary"
                 disabled={disabled}
                 aria-label={`Complete ${p.task.title}`}
-                onClick={() => complete(p)}
+                onClick={() => (onComplete ?? complete)(p)}
               >
                 Complete
               </button>
