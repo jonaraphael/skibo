@@ -1,0 +1,263 @@
+@keyframes herbarium-sway {
+  from {
+    transform: rotate(-0.6deg);
+  }
+  to {
+    transform: rotate(0.6deg);
+  }
+}
+@keyframes herbarium-leaf {
+  from {
+    transform: rotate(-1.6deg);
+  }
+  to {
+    transform: rotate(1.6deg);
+  }
+}
+@keyframes herbarium-enter {
+  from {
+    transform: scale(0.25);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes herbarium-grow {
+  from {
+    stroke-dashoffset: var(--from);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.herbarium {
+  .plant path,
+  .plant circle {
+    vector-effect: none;
+  }
+  .stem,
+  .stalk,
+  .ped,
+  .vein {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .stem {
+    stroke-width: calc(var(--sw, 1.6px) * var(--k, 1) * var(--w, 1));
+  }
+  .stalk,
+  .ped {
+    stroke-width: calc(var(--sw, 1.6px) * var(--k, 1) * 0.72);
+  }
+  .vein {
+    stroke-width: calc(0.8px * var(--k, 1));
+  }
+  .spk {
+    stroke: none;
+  }
+  .hit {
+    fill: transparent;
+    stroke: none;
+  }
+  .slot[data-i] {
+    cursor: pointer;
+    outline: none;
+  }
+  .slot[data-i] .lshape {
+    pointer-events: all;
+  }
+  .slot[data-i]:focus-visible .lshape,
+  .slot[data-i]:focus-visible .petal {
+    stroke: var(--ink);
+    stroke-width: calc(2px * var(--k, 1));
+  }
+  .stem.cane {
+    stroke-dasharray: none;
+  }
+  .live .sway {
+    animation: herbarium-sway 9.5s ease-in-out calc(var(--t0, 0s)) infinite alternate;
+  }
+  .live .lf {
+    animation: herbarium-leaf var(--p, 7s) ease-in-out calc(var(--t0, 0s) + var(--d, 0s)) infinite alternate;
+  }
+  .gr.enter {
+    animation: herbarium-enter 1.1s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .stem.grow {
+    stroke-dasharray: 1;
+    animation: herbarium-grow 1.1s ease-out both;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .live .sway,
+    .live .lf,
+    .gr.enter,
+    .stem.grow {
+      animation: none;
+    }
+  }
+  & {
+    --lv-small: #e0a333;
+    --lv-medium: #d2607e;
+    --lv-big: #7a59a8;
+  }
+  .lv-small {
+    --lv: var(--lv-small);
+  }
+  .lv-medium {
+    --lv: var(--lv-medium);
+  }
+  .lv-big {
+    --lv: var(--lv-big);
+  }
+  .petal {
+    fill: var(--lv);
+  }
+  .petal2 {
+    fill: color-mix(in srgb, var(--lv) 55%, #fff);
+  }
+  .eye {
+    fill: color-mix(in srgb, var(--lv) 45%, #3a2a10);
+  }
+  .st-herb .stem,
+  .st-herb .stalk,
+  .st-herb .ped {
+    stroke: #4d5f4a;
+    --sw: 1.4px;
+  }
+  .st-herb .stem.cane {
+    stroke: #c9b990;
+  }
+  .st-herb .lshape {
+    fill: #93ab8b;
+    stroke: #3f5340;
+    stroke-width: calc(0.9px * var(--k));
+    stroke-linejoin: round;
+  }
+  .st-herb .slot:nth-of-type(odd) .lshape {
+    fill: #a5b99b;
+  }
+  .st-herb .vein {
+    stroke: #3f5340;
+    opacity: 0.6;
+  }
+  .st-herb .spk {
+    fill: #3f5340;
+    opacity: 0.6;
+  }
+  .st-herb .open .lshape {
+    fill: none;
+    stroke: #869282;
+    stroke-dasharray: calc(2.4px * var(--k)) calc(2.4px * var(--k));
+  }
+  .st-herb .open .stalk {
+    stroke: #869282;
+    stroke-dasharray: calc(2.4px * var(--k)) calc(2.4px * var(--k));
+  }
+  .st-herb .open .vein,
+  .st-herb .open .spk {
+    display: none;
+  }
+  .st-herb .petal,
+  .st-herb .petal2 {
+    stroke: color-mix(in srgb, var(--lv) 55%, #2c2110);
+    stroke-width: calc(0.8px * var(--k));
+  }
+  .st-herb .root {
+    fill: none;
+    stroke: #8a7f66;
+    stroke-width: 0.9px;
+    stroke-linecap: round;
+  }
+}
+
+.herbarium {
+  --ink: #32412e;
+  min-width: 0;
+}
+.herbarium header,
+.herbarium figcaption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.herbarium h2 {
+  font: 400 25px/1.2 var(--serif);
+  margin: 0;
+}
+.herbarium figure {
+  margin: 12px 0 0;
+  border: 1px solid #c9bda2;
+  background: #f5eedc;
+  color: var(--ink);
+  border-radius: 3px;
+}
+.herbarium svg {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+}
+.herbarium figcaption {
+  border-top: 1px solid #d8ccb1;
+  padding: 10px 13px;
+  align-items: end;
+}
+.herbarium figcaption strong {
+  display: block;
+  font: 400 23px/1.2 var(--serif);
+}
+.herbarium figcaption .eyebrow {
+  color: #5a614f;
+}
+.herbarium summary {
+  cursor: pointer;
+}
+.herbarium .garden-index {
+  position: relative;
+}
+.herbarium .garden-index ul {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0;
+}
+.herbarium .garden-index[open] {
+  flex-basis: 55%;
+}
+.specimen-note {
+  display: grid;
+  gap: 3px;
+  font-size: 13px;
+  margin-block: 10px;
+  overflow-wrap: anywhere;
+}
+.seed-packets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.seed-packets button {
+  display: grid;
+  align-content: start;
+  padding: 7px;
+  gap: 3px;
+  background: #f5eedc;
+  color: #32412e;
+  border: 1px solid #c9bda2;
+  border-radius: 3px;
+  text-align: left;
+}
+.seed-packets svg {
+  height: 60px;
+}
+@media (max-width: 960px) {
+  .workspace-columns > .workspace-aside {
+    display: contents;
+  }
+  .workspace-aside > .herbarium {
+    order: -1;
+  }
+}

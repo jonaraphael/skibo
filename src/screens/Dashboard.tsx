@@ -4,6 +4,7 @@ import { useApp } from "../app/store";
 import { TaskPeriod } from "../app/types";
 import { Dotted, PageHeader, EmptyState } from "../components/Shared";
 import { Icon } from "../components/Icon";
+import { Herbarium } from "../components/Herbarium";
 import { HoldNotice } from "../components/HoldNotice";
 import { DoneToday } from "../components/DoneToday";
 import { TaskRow } from "../components/TaskRow";
@@ -163,60 +164,49 @@ export const Dashboard = () => {
           </button>
         </div>
         <aside className="workspace-aside">
-          <section className="tray-panel">
-            <div className="panel-heading">
-              <p className="eyebrow">
-                <i className="reward-dot" /> Tray
-              </p>
-              <span className="tray-count">{tray.length}</span>
-            </div>
-            {tray.length ? (
-              <>
-                <ul className="tray-preview">
-                  {[...tray].reverse().map((e) => (
-                    <li key={e.id}>
-                      <strong>{e.reward!.title}</strong>
-                      <span>
-                        <Dotted
-                          items={[
-                            e.reward!.size,
-                            e.taskTitle,
-                            dayKey(
-                              new Date(e.at),
-                              data.preferences.dayStart,
-                            ) === today
-                              ? "today"
-                              : prettyDate(
-                                  dayKey(
-                                    new Date(e.at),
-                                    data.preferences.dayStart,
-                                  ),
-                                ),
-                          ]}
-                        />
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  className="button reward-button full-width"
-                  to="/rewards/tray"
-                >
-                  Open tray <Icon name="arrow" size={17} />
-                </Link>
-              </>
-            ) : (
-              <>
-                <h2>Nothing waiting.</h2>
-                <p>
-                  Rewards you draw from your menu appear here.
+          <Herbarium open={open.length} />
+          {/* An empty tray shows nothing here; the Rewards nav badge carries
+              the count. */}
+          {tray.length > 0 && (
+            <section className="tray-panel">
+              <div className="panel-heading">
+                <p className="eyebrow">
+                  <i className="reward-dot" /> Tray
                 </p>
-                <Link className="text-link" to="/rewards/menu">
-                  Edit rewards <Icon name="arrow" size={16} />
-                </Link>
-              </>
-            )}
-          </section>
+                <span className="tray-count">{tray.length}</span>
+              </div>
+              <ul className="tray-preview">
+                {[...tray].reverse().map((e) => (
+                  <li key={e.id}>
+                    <strong>{e.reward!.title}</strong>
+                    <span>
+                      <Dotted
+                        items={[
+                          e.reward!.size,
+                          e.taskTitle,
+                          dayKey(new Date(e.at), data.preferences.dayStart) ===
+                          today
+                            ? "today"
+                            : prettyDate(
+                                dayKey(
+                                  new Date(e.at),
+                                  data.preferences.dayStart,
+                                ),
+                              ),
+                        ]}
+                      />
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <Link
+                className="button reward-button full-width"
+                to="/rewards/tray"
+              >
+                Open tray <Icon name="arrow" size={17} />
+              </Link>
+            </section>
+          )}
           <section className="how-it-works">
             <Link to="/rewards/record" className="text-link">
               Odds and record <Icon name="arrow" size={15} />

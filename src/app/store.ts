@@ -1,3 +1,4 @@
+import { sow } from "../lib/garden/garden";
 import { create } from "zustand";
 import {
   Completion,
@@ -355,8 +356,10 @@ export const useApp = create<AppState>((set, get) => ({
       randomId(),
     );
     if (!event || get().storageError) return;
-    if (!(await get().change((d) => ({ ...d, events: [...d.events, event] }))))
-      return;
+    if (!(await get().change((d) => {
+      const growing = d.garden?.length ? d : sow(d, "pea", event.at);
+      return { ...growing, events: [...growing.events, event] };
+    }))) return;
     set({ reveal: event.roll === null ? null : event });
     get().notify({
       message:

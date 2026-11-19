@@ -1,3 +1,5 @@
+import type { Sowing } from "../lib/garden/garden";
+
 export type Effort = "light" | "solid" | "heavy";
 export type RewardSize = "small" | "medium" | "big";
 export type DateKey = string;
@@ -96,6 +98,7 @@ export interface Notebook {
   preferences: Preferences;
   onboarded: boolean;
   introductoryDraws?: true;
+  garden?: Sowing[];
 }
 export interface TaskPeriod {
   task: Task;
