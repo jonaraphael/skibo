@@ -584,3 +584,44 @@ it("keeps saved answers selected when editing a task", () => {
   ).toBeChecked();
   expect(screen.getByLabelText("Your task rules")).toBeVisible();
 });
+
+it("keeps reward blossoms inspectable after sowing the next specimen", async () => {
+  const habit = task();
+  const at = now.toISOString();
+  const data = emptyNotebook();
+  useApp.setState({
+    data: {
+      ...data,
+      tasks: [habit],
+      garden: [{ seed: "pea", at, start: 0 }],
+      events: Array.from({ length: 10 }, (_, index) => ({
+        id: `garden-${index}`,
+        type: "completed",
+        at,
+        period: `round-${index}`,
+        taskId: habit.id,
+        taskTitle: habit.title,
+        roll: 0.1,
+        reward: index === 0 ? { id: "tea", title: "Tea break", size: "medium", active: true } : null,
+      })),
+    },
+  });
+  render(
+    <MemoryRouter>
+      <WorkspaceContext.Provider value={workspace}>
+        <Dashboard />
+      </WorkspaceContext.Provider>
+    </MemoryRouter>,
+  );
+  const herbarium = within(screen.getByRole("region", { name: "Herbarium" }));
+  expect(herbarium.getByText("10 / 10")).toBeVisible();
+  await click(herbarium.getByRole("button", { name: /Basil 12 tasks/ }));
+  expect(herbarium.getByText("0 / 12")).toBeVisible();
+  const restored = parseNotebook(JSON.parse(JSON.stringify(useApp.getState().data)));
+  expect(restored.garden?.map(({ seed }) => seed)).toEqual(["pea", "basil"]);
+  await click(herbarium.getByText("Garden", { selector: "summary" }));
+  await click(herbarium.getByRole("button", { name: /Pea Shoot/ }));
+  const blossom = herbarium.getByRole("button", { name: "Inspect flower 1" });
+  fireEvent.keyDown(blossom, { key: "Enter" });
+  expect(herbarium.getByText("Tea break · medium reward")).toBeVisible();
+});

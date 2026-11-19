@@ -1,3 +1,4 @@
+import { seedPackets } from "../garden/specimens";
 import {
   JournalEvent,
   Notebook,
@@ -148,6 +149,17 @@ export const parseNotebook = (value: unknown): Notebook => {
     throw new Error(
       "This isn't a valid Skibo backup. Your notebook has not been replaced.",
     );
+  const garden = value.garden;
+  if (garden !== undefined) {
+    const eventCount = value.events.length;
+    let previous = -1;
+    if (!Array.isArray(garden) || !garden.every((plant) => {
+      if (!object(plant) || !seedPackets.some((seed) => seed.key === plant.seed) ||
+          !iso(plant.at) || !integer(plant.start, previous + 1, eventCount)) return false;
+      previous = plant.start;
+      return true;
+    })) throw new Error("The backup contains an invalid garden.");
+  }
   const prefs = value.preferences;
   if (
     !object(prefs) ||
