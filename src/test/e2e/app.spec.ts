@@ -600,7 +600,7 @@ test("carried tasks check off and a completion clock returns when it reopens tod
   await expect(
     page.getByRole("button", { name: "Complete Water seedlings" }),
   ).toBeEnabled();
-  await expect(page.locator(".task-meta")).toContainText("0 days since last completed");
+  await expect(page.getByRole("article")).not.toContainText("since last completed");
 });
 
 test("clicking the row draws a check, wipes its contents, then slides the next task up", async ({
@@ -722,7 +722,11 @@ test("checks move repeatable tasks to the bottom and only the elapsed number cha
   await expect(sketch).not.toHaveClass(/completed-repeat/);
   await expect(repeats).toHaveCount(0);
   await expect(normal.locator(".task-title")).toHaveCount(3);
-  await expect(sketch.locator(".task-meta")).toContainText("1 day since last completed");
+  await expect(sketch).not.toContainText("since last completed");
+  await expect(sketch.locator(".task-meta .phrase")).toHaveCount(1);
+  await page.clock.setFixedTime(new Date("2026-11-17T04:00:00-05:00"));
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(sketch.locator(".task-meta")).toContainText("2 days since last completed");
   await expect(sketch.locator(".task-meta .phrase")).toHaveCount(2);
 });
 

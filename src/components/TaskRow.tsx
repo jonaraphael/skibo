@@ -36,14 +36,13 @@ export const TaskRow = ({
   const touch = useRef<{ x: number; y: number } | null>(null);
   const swiped = useRef(false);
   const checkedToday = !management && completedRepeat(period);
-  const days = lastCompletion && Math.max(
-    0,
-    daysBetween(dayKey(new Date(lastCompletion.at), dayStart), dayKey(now, dayStart)),
-  );
-  const elapsed = days !== undefined && (
+  const days = lastCompletion
+    ? daysBetween(dayKey(new Date(lastCompletion.at), dayStart), dayKey(now, dayStart))
+    : 0;
+  const elapsed = days > 1 && (
     <>
       <span className={period.pastDue ? "elapsed-highlight" : undefined}>{days}</span>
-      {days === 1 ? " day" : " days"} since last completed
+      {" days since last completed"}
     </>
   );
   const available =
@@ -61,7 +60,7 @@ export const TaskRow = ({
     : [
         !checkedToday && message,
         checkedToday && `Completed ${period.completedToday} ${period.completedToday === 1 ? "time" : "times"} today`,
-        (!checkedToday || period.pastDue) && elapsed,
+        elapsed,
         period.detail,
       ].filter(Boolean);
   const act = (fn: () => void) => {
