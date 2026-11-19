@@ -132,6 +132,35 @@ describe("the eight task behaviors", () => {
       expect(period(data, half).drawEligible).toBe(false);
     },
   );
+  it.each(["Practice", "Lapse", "Target", "Backlog"] as TaskType[])(
+    "%s reopens the selected unit when an earlier completion is undone",
+    (type) => {
+      const data = notebook(type);
+      const now = at("03T12:00:00");
+      const original = period(data, now);
+      const first = complete(data, now, "one")!;
+      const second = completePeriod(
+        data, period(data, now), now, { float01: () => 0.99 }, "two",
+      )!;
+      data.events.push(second, undoEvent(data, first.id, now, "undo-one")!);
+      expect(period(data, now)).toMatchObject({
+        key: original.key, completedToday: 1, lastCompletion: second,
+      });
+      const replay = complete(data, now, "redo-one")!;
+      expect(replay).toMatchObject({ period: first.period, reward: first.reward });
+      expect(period(data, now).key).not.toBe(second.period);
+      expect(period(data, now).key).not.toBe(first.period);
+    },
+  );
+  it("keeps an untimed deadline neutral through the end of its notebook day", () => {
+    const data = notebook("Deadline");
+    data.preferences.dayStart = 4;
+    expect(period(data, at("08T03:59:59")).pastDue).toBe(false);
+    expect(period(data, at("08T04:00:00")).pastDue).toBe(true);
+    data.tasks[0].schedule.time = "15:00";
+    expect(period(data, at("07T15:00:00")).pastDue).toBe(false);
+    expect(period(data, at("07T15:00:01")).pastDue).toBe(true);
+  });
   it.each(["Deadline", "Start date"] as TaskType[])(
     "%s pays once in its window and keeps late odds flat",
     (type) => {
@@ -168,8 +197,8 @@ describe("the eight task behaviors", () => {
       const data = notebook(type);
       expect(activeHolds(data, at("30T12:00:00"))).toHaveLength(0);
       const detail = period(data, at("30T12:00:00")).detail;
-      if (type === "Practice" || type === "Start date") expect(detail).toBe("");
-      else expect(detail).toMatch(/owed|Due /);
+      if (type === "Backlog") expect(detail).toMatch(/owed/);
+      else expect(detail).toBe("");
     },
   );
   it("Target releases behind-pace holds for one local day, then closes unmet totals as one automatic miss", () => {

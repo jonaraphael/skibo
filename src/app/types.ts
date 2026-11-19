@@ -99,6 +99,9 @@ export interface Notebook {
 }
 export interface TaskPeriod {
   task: Task;
+  lastCompletion: Completion | undefined;
+  completedToday: number;
+  pastDue: boolean;
   key: string;
   date: DateKey | null;
   time: string;

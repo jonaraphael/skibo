@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { canEdit, useApp } from "../app/store";
 import { Effort, Task } from "../app/types";
 import { Dialog } from "../components/Dialog";
+import { UndoCompletion } from "../components/UndoCompletion";
 import { EffortPips } from "../components/Shared";
 import { Answered, RhythmFields } from "../components/RhythmFields";
 import { useWorkspace } from "../components/Workspace";
@@ -170,6 +171,7 @@ export const TaskEditor = ({
               <time>
                 {prettyDate(dayKey(new Date(e.at), data.preferences.dayStart))}
               </time>
+              {e.type === "completed" && <UndoCompletion entry={e} />}
             </div>
           ))}
           <Link to="/rewards/record" onClick={close}>

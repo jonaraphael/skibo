@@ -11,7 +11,7 @@ import { useTaskListCompletion } from "../components/useTaskListCompletion";
 import { useDailyTaskMessages } from "../components/useDailyTaskMessages";
 import { useWorkspace } from "../components/Workspace";
 import { dayKey, prettyDate } from "../lib/schedule/calendar";
-import { isRepeatable, periodFor } from "../lib/tasks/taxonomy";
+import { completedRepeatsLast, isRepeatable, periodFor } from "../lib/tasks/taxonomy";
 import { completions, trayRewards } from "../lib/rewards/engine";
 
 export const Dashboard = () => {
@@ -34,15 +34,15 @@ export const Dashboard = () => {
       ? "resting"
       : isRepeatable(p.task)
         ? "repeat"
-        : "once";
+        : "single";
   const open = periods.filter(
     (p) =>
       (p.bucket === "today" || p.bucket === "anytime") && group(p) !== "resting",
   );
   const groups = [
-    { bucket: "once", label: "" },
-    { bucket: "repeat", label: "On repeat" },
+    { bucket: "single", label: "" },
     { bucket: "resting", label: "Not due yet" },
+    { bucket: "repeat", label: "On repeat" },
   ];
   const tray = trayRewards(data.events);
   const visible = periods
@@ -112,9 +112,8 @@ export const Dashboard = () => {
               const rows = filtered
                 .filter((p) => group(p) === bucket)
                 .sort((a, b) =>
-                  `${a.date ?? ""}${a.time}`.localeCompare(
-                    `${b.date ?? ""}${b.time}`,
-                  ),
+                  completedRepeatsLast(a, b) ||
+                  `${a.date ?? ""}${a.time}`.localeCompare(`${b.date ?? ""}${b.time}`),
                 );
               return (
                 rows.length > 0 && (

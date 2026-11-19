@@ -1,24 +1,12 @@
-import { canEdit, useApp } from "../app/store";
 import { Completion } from "../app/types";
 import { Mark } from "./Marks";
+import { UndoCompletion } from "./UndoCompletion";
 
 export const DoneToday = ({ entries }: { entries: Completion[] }) => {
-  const undo = useApp((s) => s.undo);
-  const editable = useApp(canEdit);
-  const latest = entries.at(-1);
   return (
     <>
       <div className="panel-heading">
         <h2>Done today</h2>
-        {latest && (
-          <button
-            className="text-link"
-            disabled={!editable}
-            onClick={() => undo(latest.id)}
-          >
-            Undo last completion
-          </button>
-        )}
       </div>
       {entries.length ? (
         <div className="activity-list">
@@ -35,6 +23,7 @@ export const DoneToday = ({ entries }: { entries: Completion[] }) => {
                   minute: "2-digit",
                 })}
               </time>
+              <UndoCompletion entry={entry} />
             </article>
           ))}
         </div>

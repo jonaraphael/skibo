@@ -554,10 +554,8 @@ test("carried tasks check off and a completion clock returns when it reopens tod
     rewards: [],
   });
   await go(page);
-  const group = page.locator(".task-group").filter({
-    has: page.getByRole("heading", { name: "On repeat", exact: true }),
-  });
-  await expect(page.getByRole("heading", { name: /^(Today|Anytime)$/ })).toHaveCount(0);
+  const group = page.locator(".task-groups");
+  await expect(page.getByRole("heading", { name: /^(Today|Anytime|On repeat)$/ })).toHaveCount(0);
   await expect(group.getByRole("article")).toHaveCount(2);
   const walk = group.getByRole("article").filter({ hasText: "Take a walk" });
   const message = await walk.locator(".task-meta").innerText();
@@ -580,7 +578,7 @@ test("carried tasks check off and a completion clock returns when it reopens tod
   await expect(history).toHaveCount(0);
   await page.reload();
   await page.getByRole("button", { name: "1 done", exact: true }).click();
-  await history.getByRole("button", { name: "Undo last completion" }).click();
+  await history.getByRole("button", { name: /Undo completion of Take a walk/ }).click();
   await expect(history).toContainText("No completions yet today.");
   await expect(walk.locator(".task-meta")).toHaveText(message);
   await page.getByRole("button", { name: "0 done", exact: true }).click();
@@ -602,7 +600,67 @@ test("carried tasks check off and a completion clock returns when it reopens tod
   await expect(
     page.getByRole("button", { name: "Complete Water seedlings" }),
   ).toBeEnabled();
-  await expect(page.locator(".task-meta")).toContainText("Completed 1 time today");
+  await expect(page.locator(".task-meta")).toContainText("0 days since last completed");
+});
+
+test("checks move repeatable tasks to the bottom and only the elapsed number changes color", async ({
+  page,
+}) => {
+  const data = emptyNotebook();
+  data.onboarded = true;
+  data.preferences.dayStart = 4;
+  data.preferences.reduceMotion = true;
+  data.rewards = [];
+  const upkeep = task({ kind: "after", every: 5, start: "2026-11-01" });
+  const first = {
+    ...upkeep, id: "sketch", title: "Sketch",
+    behavior: { ...upkeep.behavior, payoff: "more" as const },
+  };
+  const second = { ...first, id: "read", title: "Read" };
+  data.tasks = [first, second, upkeep];
+  data.events.push({
+    id: "prior", type: "completed", taskId: upkeep.id, taskTitle: upkeep.title,
+    period: `${upkeep.id}:after:0:r1:unit:0`, at: "2026-11-10T13:00:00-05:00",
+    roll: 0.9, reward: null,
+  });
+  await seed(page, data);
+  await go(page);
+  const repeats = page.locator(".task-group").filter({
+    has: page.getByRole("heading", { name: "On repeat" }),
+  });
+  const walk = page.getByRole("article").filter({ hasText: upkeep.title });
+  await expect(repeats.locator(".task-title")).toHaveText(["Sketch", "Read"]);
+  await expect(walk).toContainText("5 days since last completed");
+  await expect(walk).not.toContainText(/due nov/i);
+  await expect(walk.locator(".elapsed-highlight")).toHaveCount(0);
+  await page.clock.setFixedTime(new Date("2026-11-15T13:00:01-05:00"));
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(walk.locator(".elapsed-highlight")).toHaveText("5");
+
+  const sketch = repeats.getByRole("article").filter({ hasText: "Sketch" });
+  const check = sketch.getByRole("button", { name: "Complete Sketch" });
+  await check.click();
+  await expect(page.locator(".task-groups .task-title").last()).toHaveText("Sketch");
+  await expect(sketch).toHaveClass(/completed-repeat/);
+  await expect(sketch.locator(".task-copy")).toHaveCSS("opacity", "0.78");
+  await expect(sketch.locator(".task-meta")).toHaveText("Completed 1 time today");
+  await check.click();
+  await page.getByRole("button", { name: "2 done", exact: true }).click();
+  const history = page.getByRole("region", { name: "Done today" });
+  await history.getByRole("article").last().getByRole("button", { name: /Undo completion/ }).click();
+  await expect(history.getByRole("article")).toHaveCount(1);
+  await expect(sketch.locator(".task-meta")).toHaveText("Completed 1 time today");
+  await nav(page, "Plan");
+  await expect(page.locator(".plan-list .task-title").last()).toHaveText("Sketch");
+  await nav(page, "Today");
+  await page.clock.setFixedTime(new Date("2026-11-16T03:59:59-05:00"));
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(sketch).toHaveClass(/completed-repeat/);
+  await page.clock.setFixedTime(new Date("2026-11-16T04:00:00-05:00"));
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(sketch).not.toHaveClass(/completed-repeat/);
+  await expect(sketch.locator(".task-meta")).toContainText("1 day since last completed");
+  await expect(sketch.locator(".task-meta .phrase")).toHaveCount(2);
 });
 
 test("keyboard undo preserves text edits and can reverse an enjoyed reward after reload", async ({

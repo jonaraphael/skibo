@@ -1,12 +1,11 @@
 import { useRef, useState } from "react";
 import { TaskPeriod } from "../app/types";
 import { canEdit, useApp } from "../app/store";
-import { dayKey, scheduleLabel } from "../lib/schedule/calendar";
+import { dayKey, daysBetween, scheduleLabel } from "../lib/schedule/calendar";
 import { Dotted, EffortPips } from "./Shared";
 import { useWorkspace } from "./Workspace";
 import { Icon } from "./Icon";
-import { completions } from "../lib/rewards/engine";
-import { isRepeatable, taskType } from "../lib/tasks/taxonomy";
+import { completedRepeat, taskType } from "../lib/tasks/taxonomy";
 import { TaskHistory } from "./TaskHistory";
 
 export const TaskRow = ({
@@ -22,11 +21,10 @@ export const TaskRow = ({
   message?: string;
   onComplete?: (p: TaskPeriod) => void;
 }) => {
-  const { task, bucket } = period;
+  const { task, bucket, lastCompletion } = period;
   const { openTask, now } = useWorkspace();
   const complete = useApp((s) => s.complete);
   const undo = useApp((s) => s.undo);
-  const events = useApp((s) => s.data.events);
   const dayStart = useApp((s) => s.data.preferences.dayStart);
   const skip = useApp((s) => s.skip);
   const snooze = useApp((s) => s.snooze);
@@ -36,13 +34,17 @@ export const TaskRow = ({
   const [menuAbove, setMenuAbove] = useState(false);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const swiped = useRef(false);
-  const history = completions(events).filter((e) => e.taskId === task.id);
-  const lastCompletion = history.at(-1);
-  const today = dayKey(now, dayStart);
-  const count =
-    !management && isRepeatable(task)
-      ? history.filter((e) => dayKey(new Date(e.at), dayStart) === today).length
-      : 0;
+  const checkedToday = !management && completedRepeat(period);
+  const days = lastCompletion && Math.max(
+    0,
+    daysBetween(dayKey(new Date(lastCompletion.at), dayStart), dayKey(now, dayStart)),
+  );
+  const elapsed = days === undefined ? "Not completed yet" : (
+    <>
+      <span className={period.pastDue ? "elapsed-highlight" : undefined}>{days}</span>
+      {days === 1 ? " day" : " days"} since last completed
+    </>
+  );
   const actionable =
     !management &&
     !finishing &&
@@ -52,12 +54,13 @@ export const TaskRow = ({
   const meta = management
     ? [
         taskType(task.schedule, task.behavior),
-        scheduleLabel(task.schedule),
+        task.schedule.kind === "once" ? "Once" : scheduleLabel(task.schedule),
         ...(task.status === "active" ? [] : [task.status]),
       ]
     : [
-        message,
-        count > 0 && `Completed ${count} ${count === 1 ? "time" : "times"} today`,
+        !checkedToday && !finishing && message,
+        checkedToday && `Completed ${period.completedToday} ${period.completedToday === 1 ? "time" : "times"} today`,
+        (!checkedToday || period.pastDue) && elapsed,
         period.detail,
       ].filter(Boolean);
   const act = (fn: () => void) => {
@@ -67,7 +70,7 @@ export const TaskRow = ({
   };
   return (
     <article
-      className={`task-row ${finishing ? "finishing" : ""} ${task.status !== "active" ? "inactive" : ""}`}
+      className={`task-row ${finishing ? "finishing" : ""} ${checkedToday ? "completed-repeat" : ""} ${task.status !== "active" ? "inactive" : ""}`}
       onTouchStart={(e) => {
         touch.current = null;
         swiped.current = false;
@@ -170,7 +173,7 @@ export const TaskRow = ({
           <button onClick={() => act(() => openTask(task))}>
             Edit task & history
           </button>
-          {lastCompletion && (
+          {lastCompletion && !finishing && (
             <button
               disabled={!!storageError}
               onClick={() => act(() => undo(lastCompletion.id))}

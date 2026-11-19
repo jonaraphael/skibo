@@ -14,7 +14,7 @@ import {
   prettyDate,
   weekStart,
 } from "../lib/schedule/calendar";
-import { periodFor } from "../lib/tasks/taxonomy";
+import { completedRepeatsLast, periodFor } from "../lib/tasks/taxonomy";
 
 export const Plan = () => {
   const { data } = useApp();
@@ -52,11 +52,12 @@ export const Plan = () => {
         matchesDay(p.task.schedule, date)
       );
     });
+  const managing = mode === "all" || selected !== today;
   const rows =
     mode === "all"
       ? periods.filter((p) => status === "all" || p.task.status === status)
       : onDay(selected);
-  const managing = mode === "all" || selected !== today;
+  if (!managing) rows.sort(completedRepeatsLast);
   const messages = useDailyTaskMessages(today, managing ? [] : rows);
   const move = (delta: number) => {
     setWeek(addDays(week, delta));

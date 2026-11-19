@@ -1,4 +1,5 @@
 import {
+  Completion,
   JournalEvent,
   Notebook,
   Preferences,
@@ -27,9 +28,11 @@ export type TaskType =
   | "Tank"
   | "Upkeep";
 export const isRepeatable = (task: Task) =>
-  task.schedule.kind !== "once" ||
-  (task.behavior.payoff === "more" &&
-    (task.behavior.cost === "cliff" || task.behavior.goal > 1));
+  task.behavior.payoff === "more";
+export const completedRepeat = (period: TaskPeriod) =>
+  isRepeatable(period.task) && period.completedToday > 0;
+export const completedRepeatsLast = (a: TaskPeriod, b: TaskPeriod) =>
+  Number(completedRepeat(a)) - Number(completedRepeat(b));
 
 export const taskType = (
   schedule: Schedule,
@@ -89,8 +92,8 @@ const shift = (date: Date, amount: number, unit: Schedule["unit"]): Date => {
   result.setTime(result.getTime() + (days - Math.floor(days)) * 86_400_000);
   return result;
 };
-const resolutions = (task: Task, events: JournalEvent[]) =>
-  liveEvents(events).filter(
+const resolutions = (task: Task, live: JournalEvent[]) =>
+  live.filter(
     (e): e is Extract<JournalEvent, { taskId: string }> =>
       "taskId" in e &&
       e.taskId === task.id &&
@@ -101,6 +104,17 @@ const inRound = (period: string, round: string) =>
   period.startsWith(`${round}:unit:`);
 const roundEvents = (history: ReturnType<typeof resolutions>, round: string) =>
   history.filter((e) => inRound(e.period, round));
+// Undo can leave a hole before another live unit. Reuse that unit's own
+// period (and saved draw) without colliding with the later completion.
+const nextUnit = (
+  history: ReturnType<typeof resolutions>,
+  keyFor: (index: number) => string,
+) => {
+  const used = new Set(history.map((e) => e.period));
+  let index = 0;
+  while (used.has(keyFor(index))) index++;
+  return index;
+};
 const boundary = (task: Task, date: string, prefs: Preferences) =>
   clockDate(date, task.schedule.time, prefs);
 const closes = (task: Task, date: string, prefs: Preferences) =>
@@ -126,12 +140,16 @@ export const periodFor = (
     b = task.behavior,
     type = taskType(s, b);
   const today = dayKey(now, prefs.dayStart);
-  const history = resolutions(task, events);
-  const completed = history.filter((e) => e.type === "completed");
+  const live = liveEvents(events);
+  const history = resolutions(task, live);
+  const completed = live.filter(
+    (e): e is Completion => e.type === "completed" && e.taskId === task.id,
+  );
   const last = history.at(-1);
-  const lastDone = completed.at(-1);
-  let round = `${task.id}:after:${history.length}:r${task.rhythmRevision}`;
-  let date: string | null = s.start;
+  const lastDone = history.filter((e) => e.type === "completed").at(-1);
+  let round: string;
+  let unit = 0;
+  let date = s.start;
   let opens = boundary(task, s.start, prefs);
   let due: Date | null = null;
   let done = false;
@@ -142,6 +160,9 @@ export const periodFor = (
   let detail = "";
 
   if (s.kind === "after") {
+    const afterRound = (i: number) =>
+      `${task.id}:after:${i}:r${task.rhythmRevision}`;
+    round = afterRound(nextUnit(history, (i) => `${afterRound(i)}:unit:0`));
     const anchor = last ? new Date(last.at) : opens;
     opens = anchor;
     due = shift(anchor, s.every - (b.cost === "cliff" ? b.lead : 0), s.unit);
@@ -154,13 +175,10 @@ export const periodFor = (
           anchor.getTime() + (due.getTime() - anchor.getTime()) * b.opening,
         );
         drawEligible = now >= rewardOpens;
-        const opensAt = `${prettyDate(dayKey(rewardOpens, prefs.dayStart))}${s.unit === "hours" ? ` ${rewardOpens.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}`;
-        detail = drawEligible
-          ? `Due ${prettyDate(date)}`
-          : `Due ${prettyDate(date)} · no draw before ${opensAt}`;
-      } else detail = `Next ${b.unitLabel} due ${prettyDate(date)}`;
+        if (!drawEligible) detail = "No reward draw yet";
+      }
       if (b.cost === "cliff" && now >= due)
-        hold = `Due ${prettyDate(date)} · complete one ${b.unitLabel} or declare a miss`;
+        hold = `Complete one ${b.unitLabel} or declare a miss`;
     }
   } else if (type === "Backlog") {
     let deliveries = 0;
@@ -172,6 +190,7 @@ export const periodFor = (
       deliveries++;
     const owed = Math.max(0, deliveries * b.goal - history.length);
     round = `${task.id}:backlog:r${task.rhythmRevision}`;
+    unit = nextUnit(history, (i) => `${round}:unit:${i}`);
     count = history.length;
     goal = deliveries * b.goal;
     done = owed === 0 && deliveries > 0;
@@ -200,9 +219,8 @@ export const periodFor = (
     done = day === null;
     date = day ?? s.start;
     round = `${task.id}:${date}:start:r${task.rhythmRevision}`;
-    opens = boundary(task, date!, prefs);
+    opens = boundary(task, date, prefs);
     due = opens;
-    if (date > today) detail = `Starts ${prettyDate(date)}`;
   } else {
     let day = first(task);
     let opening = b.windowStart;
@@ -242,6 +260,7 @@ export const periodFor = (
       (e) => dayKey(new Date(e.at), prefs.dayStart) === today,
     );
     if (type === "Target") {
+      unit = nextUnit(entries, (i) => `${round}:unit:${i}`);
       const totalDays = Math.max(1, daysBetween(opening, day) + 1);
       const elapsed = Math.max(
         0,
@@ -250,14 +269,12 @@ export const periodFor = (
       const pace = Math.ceil((b.goal * elapsed) / totalDays);
       if (!done && now >= opens && count < pace && !actedToday)
         hold = `Behind pace (${count}/${b.goal}) · do one ${b.unitLabel} today or declare a miss`;
-      detail = `${count} of ${b.goal} ${b.unitLabel}s · due ${prettyDate(day)}`;
-    } else {
-      if (!done && now >= due)
-        hold = `Due ${prettyDate(dayKey(due, prefs.dayStart))} · complete or declare a miss`;
-      detail = `Deadline ${prettyDate(day)}`;
+      detail = `${count} of ${b.goal} ${b.unitLabel}${b.goal === 1 ? "" : "s"}`;
+    } else if (!done && now >= due) {
+      hold = "Complete or declare a miss";
     }
   }
-  const snooze = liveEvents(events)
+  const snooze = live
     .filter(
       (e) =>
         e.type === "snoozed" &&
@@ -283,10 +300,23 @@ export const periodFor = (
   )
     bucket = "done";
   if (done || now < opens) drawEligible = false;
+  // Calendar dates without a time run through the end of the notebook day.
+  const pastDue = !done && due !== null && (
+    s.kind === "after"
+      ? now > due
+      : s.time
+        ? now > boundary(task, date, prefs)
+        : today > date
+  );
   return {
     task,
+    lastCompletion: completed.at(-1),
+    completedToday: completed.filter(
+      (e) => dayKey(new Date(e.at), prefs.dayStart) === today,
+    ).length,
+    pastDue,
     round,
-    key: `${round}:unit:${count}`,
+    key: `${round}:unit:${unit}`,
     date: due ? dayKey(due, prefs.dayStart) : date,
     time: due
       ? due.toLocaleTimeString([], {
@@ -316,13 +346,14 @@ export const activeHolds = (data: Notebook, now: Date): TaskPeriod[] =>
 // Materialize closed, unmet Target rounds exactly once, including time away.
 export const targetMisses = (data: Notebook, now: Date): JournalEvent[] => {
   const misses: JournalEvent[] = [];
+  const live = liveEvents(data.events);
   for (const task of data.tasks) {
     if (
       task.status !== "active" ||
       taskType(task.schedule, task.behavior) !== "Target"
     )
       continue;
-    const history = resolutions(task, data.events);
+    const history = resolutions(task, live);
     for (
       let day: string | null = first(task);
       day && closes(task, day, data.preferences) <= now;

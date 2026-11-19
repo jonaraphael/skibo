@@ -5,6 +5,7 @@ import { Completion, Effort, RewardSize } from "../app/types";
 import { EmptyState, PageHeader } from "../components/Shared";
 import { Icon } from "../components/Icon";
 import { HoldNotice } from "../components/HoldNotice";
+import { UndoCompletion } from "../components/UndoCompletion";
 import { activeHolds, targetMisses } from "../lib/tasks/taxonomy";
 import { RecordChart } from "../components/RecordChart";
 import { useWorkspace } from "../components/Workspace";
@@ -372,6 +373,7 @@ export const Rewards = () => {
                     {e.roll === null ? "No draw" : `Roll ${e.roll.toFixed(4)}`}
                   </small>
                 </time>
+                <UndoCompletion entry={e} />
               </article>
             ))}
           </div>

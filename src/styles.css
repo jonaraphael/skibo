@@ -679,6 +679,14 @@ textarea {
 .task-row.finishing {
   animation: task-complete 450ms ease-in forwards;
 }
+.completed-repeat .task-copy,
+.completed-repeat .complete-button,
+.completed-repeat .effort-pips {
+  opacity: 0.78;
+}
+.elapsed-highlight {
+  color: var(--late);
+}
 .finishing .complete-button path {
   stroke-dasharray: 22;
   animation: draw-check 150ms ease-out both;

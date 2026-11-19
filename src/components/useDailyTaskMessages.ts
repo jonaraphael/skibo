@@ -2,6 +2,7 @@ import { useLayoutEffect, useMemo, useState } from "react";
 import { useApp } from "../app/store";
 import { DateKey, TaskPeriod } from "../app/types";
 import { shuffledMessages } from "../lib/tasks/dailyMessages";
+import { completedRepeat } from "../lib/tasks/taxonomy";
 
 function loadDeck(day: DateKey, storageKey: string) {
   const cards = shuffledMessages(day);
@@ -31,7 +32,7 @@ export function useDailyTaskMessages(day: DateKey, periods: TaskPeriod[]) {
     // Reserve a card once. Completed and hidden tasks keep their slots so
     // changing the list cannot give another task the same message today.
     const additions = periods
-      .filter((p) => !deck.assignments.has(p.task.id))
+      .filter((p) => !completedRepeat(p) && !deck.assignments.has(p.task.id))
       .slice(0, deck.cards.length - deck.assignments.size);
     if (!additions.length) return;
     const assignments = new Map(deck.assignments);
