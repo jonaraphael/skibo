@@ -155,7 +155,6 @@ h3,
 legend,
 summary,
 .task-title,
-.tray-preview strong,
 .suggestion-list span {
   text-wrap: balance;
 }
@@ -432,42 +431,11 @@ textarea {
   grid-column: 2;
   min-width: 0;
 }
-.workspace-topbar {
-  height: 78px;
-  margin: 0 44px;
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-}
-.desktop-breadcrumb {
-  font-size: 11px;
-  color: var(--muted);
-  display: flex;
-  gap: 14px;
-}
-.desktop-breadcrumb > span {
-  color: var(--faint);
-}
-.topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-.tray-link {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  font: 500 11px var(--mono);
-  min-height: 40px;
-  color: var(--amber-ink);
-}
-.mobile-wordmark {
-  display: none;
+.onboarding-top {
+  padding: 30px 44px 0;
 }
 .app-content main {
-  padding: 43px 44px 48px;
+  padding: 66px 44px 48px;
   max-width: 1390px;
   margin: auto;
   outline: none;
@@ -481,6 +449,9 @@ textarea {
 }
 .page-heading h1 {
   margin-top: 0;
+}
+.mobile-settings {
+  display: none;
 }
 .page-heading .lede {
   margin-top: 10px;
@@ -843,33 +814,6 @@ button.task-primary:focus-visible::before {
   font-size: 10px;
   margin-top: 28px;
   line-height: 1.7;
-}
-.tray-panel {
-  background: var(--amber-wash);
-  border: 1px solid color-mix(in srgb, var(--amber) 25%, var(--line));
-  padding: 22px;
-  border-radius: 14px;
-}
-.tray-panel .eyebrow {
-  color: var(--amber-ink);
-  font-size: 9px;
-  letter-spacing: 1.1px;
-}
-.tray-count {
-  font: 500 10px var(--mono);
-  color: var(--amber-ink);
-  border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent);
-  padding: 4px 6px;
-  border-radius: 5px;
-}
-.tray-panel > .button {
-  margin-top: 18px;
-}
-.how-it-works {
-  padding: 0 7px;
-}
-.how-it-works .text-link {
-  font-size: 11px;
 }
 .toolbar {
   display: flex;
@@ -1968,7 +1912,7 @@ legend {
 }
 @media (min-width: 1600px) {
   .app-content main {
-    padding-top: 55px;
+    padding-top: 76px;
   }
   .workspace-columns {
     grid-template-columns: minmax(0, 1fr) 300px;
@@ -1997,10 +1941,10 @@ legend {
     font-size: 20px;
   }
   .app-content main {
-    padding: 32px 28px 40px;
+    padding: 54px 28px 40px;
   }
-  .workspace-topbar {
-    margin: 0 28px;
+  .onboarding-top {
+    padding: 26px 28px 0;
   }
   .workspace-columns {
     gap: 23px;
@@ -2015,9 +1959,6 @@ legend {
   .page-heading .button {
     font-size: 11px;
     padding: 12px 13px;
-  }
-  .tray-panel {
-    padding: 20px;
   }
   .list-heading {
     align-items: flex-start;
@@ -2046,9 +1987,6 @@ legend {
     grid-template-columns: 1fr 1fr;
     gap: 24px;
     margin-top: 12px;
-  }
-  .how-it-works {
-    padding-top: 20px;
   }
   .list-heading {
     flex-direction: row;
@@ -2123,31 +2061,26 @@ legend {
   .app-shell.onboarding {
     padding-bottom: 20px;
   }
-  .workspace-topbar {
-    height: 66px;
-    margin: 0 23px;
-  }
-  .desktop-breadcrumb {
-    display: none;
-  }
-  .mobile-wordmark {
-    display: block;
-    font-size: 21px;
-    font-weight: 650;
-    letter-spacing: -0.8px;
-  }
-  .topbar-actions {
-    gap: 12px;
-  }
-  .topbar-actions > .icon-button {
-    width: 33px;
+  .onboarding-top {
+    padding: 22px 23px 0;
   }
   .app-content main {
-    padding: 29px 23px 30px;
+    padding: calc(env(safe-area-inset-top, 0px) + 44px) 23px 30px;
   }
   .page-heading {
     display: block;
+    position: relative;
     margin-bottom: 26px;
+  }
+  .page-heading:has(> .mobile-settings) > div:first-of-type {
+    padding-right: 44px;
+  }
+  .mobile-settings {
+    display: inline-flex;
+    position: absolute;
+    top: -4px;
+    right: -9px;
+    color: var(--muted);
   }
   .page-heading .eyebrow {
     font-size: 9px;
@@ -2225,18 +2158,6 @@ legend {
   .workspace-aside {
     display: block;
     margin-top: 3px;
-  }
-  .how-it-works {
-    display: none;
-  }
-  .tray-panel {
-    padding: 20px;
-  }
-  .tray-panel .button {
-    font-size: 12px;
-  }
-  .tray-panel .panel-heading {
-    margin-bottom: 10px;
   }
   .quiet-note {
     font-size: 10px;
@@ -2610,8 +2531,9 @@ legend {
     padding-left: 18px;
     padding-right: 18px;
   }
-  .workspace-topbar {
-    margin: 0 18px;
+  .onboarding-top {
+    padding-left: 18px;
+    padding-right: 18px;
   }
   h1 {
     font-size: 32px;
@@ -2766,26 +2688,6 @@ html[data-motion="reduce"] *::after {
   color: var(--muted);
   min-width: 34px;
   text-align: right;
-}
-.tray-preview {
-  list-style: none;
-  padding: 0;
-  margin: 12px 0 0;
-}
-.tray-preview li {
-  padding: 12px 0;
-  border-top: 1px solid color-mix(in srgb, var(--amber) 30%, transparent);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  overflow-wrap: anywhere;
-}
-.tray-preview strong {
-  font: 500 17px/1.25 var(--serif);
-}
-.tray-preview span {
-  font-size: 11px;
-  color: var(--amber-ink);
 }
 .reveal-sheet .task-history-strip {
   justify-content: center;
@@ -3029,12 +2931,6 @@ input[type="radio"] {
 }
 .app-shell.onboarding .app-content {
   grid-column: 1;
-}
-.app-shell.onboarding .mobile-wordmark {
-  display: block;
-  font-size: 21px;
-  font-weight: 650;
-  letter-spacing: -0.8px;
 }
 .welcome.welcome-step {
   display: block;

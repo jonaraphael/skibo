@@ -32,7 +32,17 @@
     stroke-dashoffset: 0;
   }
 }
-.herbarium {
+@keyframes seed-burst {
+  from {
+    opacity: 0;
+    transform: rotate(calc(var(--i) * 36deg)) translateY(-34px) scale(0.3);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(calc(var(--i) * 36deg)) translateY(-86px) scale(1);
+  }
+}
+.plant-art {
   .plant path,
   .plant circle {
     vector-effect: none;
@@ -147,8 +157,9 @@
     fill: #3f5340;
     opacity: 0.6;
   }
-  .st-herb .open .lshape {
-    fill: none;
+  /* An open task is blank paper: near white, far from the earned greens. */
+  .st-herb .slot.open .lshape {
+    fill: #fefdf9;
     stroke: #869282;
     stroke-dasharray: calc(2.4px * var(--k)) calc(2.4px * var(--k));
   }
@@ -171,93 +182,286 @@
     stroke-width: 0.9px;
     stroke-linecap: round;
   }
+  .slot[data-selected] .lshape,
+  .slot[data-selected] .petal {
+    stroke: #1f2b1c;
+    stroke-width: calc(1.8px * var(--k, 1));
+  }
 }
 
+/* A specimen sheet: the plant on Today, and a finished plant opened from the
+   Garden. The paper keeps its color in the dark theme. */
 .herbarium {
-  --ink: #32412e;
   min-width: 0;
-}
-.herbarium header,
-.herbarium figcaption {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
 }
 .herbarium h2 {
   font: 400 25px/1.2 var(--serif);
   margin: 0;
 }
-.herbarium figure {
-  margin: 12px 0 0;
-  border: 1px solid #c9bda2;
+.specimen,
+.garden-sheet,
+.seed-packets button {
+  --ink: #32412e;
   background: #f5eedc;
   color: var(--ink);
+  border: 1px solid #c9bda2;
   border-radius: 3px;
+  box-shadow: 0 1px 2px #3c32140f;
 }
-.herbarium svg {
+.specimen {
+  position: relative;
+  margin: 14px 0 0;
+}
+.specimen > svg {
   display: block;
   width: 100%;
-  max-height: 220px;
+  max-height: 240px;
 }
-.herbarium figcaption {
-  border-top: 1px solid #d8ccb1;
-  padding: 10px 13px;
+.specimen figcaption {
+  display: flex;
   align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid #d8ccb1;
+  padding: 10px 13px 11px;
 }
-.herbarium figcaption strong {
+.specimen figcaption strong {
   display: block;
   font: 400 23px/1.2 var(--serif);
 }
-.herbarium figcaption .eyebrow {
+.specimen .eyebrow,
+.garden-sheet .eyebrow,
+.seed-packets .eyebrow {
   color: #5a614f;
 }
-.herbarium summary {
-  cursor: pointer;
+.specimen figcaption > div {
+  min-width: 0;
 }
-.herbarium .garden-index {
-  position: relative;
+.specimen-count {
+  font: 400 26px/1 var(--serif);
+  flex-shrink: 0;
 }
-.herbarium .garden-index ul {
+/* The global rule for <small> re-enables wrapping, so both need nowrap. */
+.specimen-count,
+.specimen-count small {
+  white-space: nowrap;
+}
+.specimen-count small {
+  font: 400 11px var(--mono);
+  color: #5a614f;
+}
+.specimen-pop {
+  position: absolute;
+  z-index: 2;
+  width: max-content;
+  max-width: 216px;
+  transform: translate(-50%, -100%);
+  display: grid;
+  gap: 2px;
+  padding: 9px 11px 10px;
+  background: #fffef9;
+  border: 1px solid #d8ccb1;
+  border-radius: 9px;
+  box-shadow: 0 8px 22px #2a22102e;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #5a614f;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+.specimen-pop.below {
+  transform: translate(-50%, 0);
+}
+.specimen-pop strong {
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--ink);
+}
+.specimen-reward {
+  color: var(--ink);
+}
+.specimen-reward i {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--lv);
+  margin-right: 5px;
+}
+.herbarium > .button {
+  margin-top: 12px;
+}
+.specimen-sheet .specimen {
+  margin-top: 0;
+}
+.specimen-tally {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 12px;
+}
+
+/* Garden: one sheet per finished plant. */
+.garden-sheets {
   list-style: none;
   padding: 0;
-  margin: 8px 0;
-}
-.herbarium .garden-index[open] {
-  flex-basis: 55%;
-}
-.specimen-note {
+  margin: 0;
   display: grid;
-  gap: 3px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+}
+.garden-sheet {
+  display: grid;
+  width: 100%;
+  padding: 0 0 11px;
+  text-align: left;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
+}
+.garden-sheet:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px #3c32141f;
+}
+.garden-sheet svg,
+.seed-packets svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.garden-sheet .eyebrow,
+.garden-sheet strong {
+  padding: 0 12px;
+}
+.garden-sheet strong {
+  font: 400 18px/1.25 var(--serif);
+}
+
+/* Seed picker: the finished plant, then the twelve packets. */
+.sheet.seed-sheet {
+  width: min(720px, calc(100% - 28px));
+}
+.seed-celebration {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  margin-bottom: 22px;
+}
+.seed-figure {
+  position: relative;
+  width: 172px;
+  margin: 26px 0 8px;
+}
+.seed-figure svg {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.seed-burst {
+  position: absolute;
+  left: 50%;
+  top: 52%;
+}
+.seed-burst span {
+  position: absolute;
+  left: -7px;
+  top: -7px;
+  font-size: 14px;
+  line-height: 0;
+  transform: rotate(calc(var(--i) * 36deg)) translateY(-86px);
+  animation: seed-burst 0.9s cubic-bezier(0.2, 0.7, 0.2, 1)
+    calc(var(--i) * 45ms + 120ms) both;
+}
+.seed-burst .mark.leaf {
+  opacity: 0.55;
+}
+.seed-celebration h2 {
+  font-size: 28px;
+}
+.seed-celebration p {
   font-size: 13px;
-  margin-block: 10px;
-  overflow-wrap: anywhere;
+  color: var(--muted);
+  max-width: 44ch;
+  margin-top: 8px;
+  text-wrap: balance;
 }
 .seed-packets {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
 }
 .seed-packets button {
   display: grid;
   align-content: start;
-  padding: 7px;
-  gap: 3px;
-  background: #f5eedc;
-  color: #32412e;
-  border: 1px solid #c9bda2;
-  border-radius: 3px;
+  gap: 2px;
+  padding: 0 0 10px;
   text-align: left;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
 }
-.seed-packets svg {
-  height: 60px;
+.seed-packets button:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px #3c32141f;
 }
+.seed-packets strong,
+.seed-packets .eyebrow,
+.seed-packets small {
+  padding: 0 10px;
+}
+.seed-packets strong {
+  font: 400 17px/1.25 var(--serif);
+}
+.seed-packets small {
+  font-size: 11px;
+  line-height: 1.35;
+  color: #5a614f;
+  margin-top: 2px;
+}
+.seed-later {
+  margin-top: 14px;
+}
+
 @media (max-width: 960px) {
   .workspace-columns > .workspace-aside {
     display: contents;
   }
   .workspace-aside > .herbarium {
     order: -1;
+  }
+}
+@media (max-width: 700px) {
+  .herbarium h2 {
+    display: none;
+  }
+  .specimen {
+    margin-top: 0;
+  }
+  .specimen > svg {
+    max-height: 190px;
+  }
+  .garden-sheets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .sheet.seed-sheet {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .seed-packets {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .seed-packets strong {
+    font-size: 15px;
+  }
+  .seed-packets small {
+    display: none;
+  }
+  .seed-celebration h2 {
+    font-size: 25px;
+  }
+  .seed-figure {
+    width: 150px;
   }
 }

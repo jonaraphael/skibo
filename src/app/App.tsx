@@ -6,11 +6,13 @@ import { Dialog } from "../components/Dialog";
 import { Toast } from "../components/Toast";
 import { readStoredData, resetLocalNotebook } from "../lib/persistence/storage";
 import { RewardReveal } from "../components/RewardReveal";
+import { SeedPicker } from "../components/SeedPicker";
 import { TaskEditor } from "../screens/TaskEditor";
 import { RewardEditor } from "../screens/RewardEditor";
 import { Welcome } from "../screens/Welcome";
 import { downloadBackup } from "../screens/Settings";
 import { completions, trayRewards } from "../lib/rewards/engine";
+import { gardenPlants } from "../lib/garden/garden";
 import { AppRoutes } from "./routes";
 import { canEdit, saveStatus, useApp } from "./store";
 import { Reward, Task } from "./types";
@@ -19,6 +21,7 @@ const navigation = [
   { to: "/", label: "Today", icon: "today" },
   { to: "/plan", label: "Plan", icon: "plan" },
   { to: "/rewards/tray", label: "Rewards", icon: "rewards" },
+  { to: "/garden", label: "Garden", icon: "leaf" },
 ];
 export const App = () => {
   const state = useApp();
@@ -31,6 +34,10 @@ export const App = () => {
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetPending, setResetPending] = useState(false);
   const [reward, setReward] = useState<Reward | null | undefined>();
+  const [seedCelebration, setSeedCelebration] = useState<{
+    milestone: string;
+    open: boolean;
+  }>();
   useEffect(() => {
     setTask(undefined);
     setReward(undefined);
@@ -99,16 +106,23 @@ export const App = () => {
   }, [now, state.data, state.syncConnected, state.pending, state.settle]);
   const tray = trayRewards(state.data.events).length;
   const onboarding = !state.data.onboarded && location.pathname !== "/settings";
+  const activePlant = useMemo(() => gardenPlants(state.data).at(-1), [state.data]);
+  const milestone = activePlant?.finished
+    ? JSON.stringify([state.syncUser?.uid, activePlant.sowing])
+    : null;
+  const canShowCelebration =
+    state.loaded && !state.loadError && !state.syncLoading &&
+    state.data.onboarded && !state.reveal && task === undefined && reward === undefined;
+  // Wait for the completion to save and any reward reveal to finish.
+  useEffect(() => {
+    if (canShowCelebration && !state.pending && milestone && seedCelebration?.milestone !== milestone)
+      setSeedCelebration({ milestone, open: true });
+  }, [canShowCelebration, state.pending, milestone, seedCelebration?.milestone]);
+  const setSeedPickerOpen = (open: boolean) => {
+    if (milestone) setSeedCelebration({ milestone, open });
+  };
   const closeTask = () => setTask(undefined);
   const closeReward = () => setReward(undefined);
-  const currentLabel =
-    location.pathname === "/"
-      ? "Today"
-      : location.pathname === "/plan"
-        ? "Plan"
-        : location.pathname === "/settings"
-          ? "Settings"
-          : "Rewards";
   const downloadStored = () => {
     void readStoredData()
       .then(downloadBackup)
@@ -237,6 +251,7 @@ export const App = () => {
       value={{
         openTask: (t) => setTask(t ?? null),
         openReward: (r) => setReward(r ?? null),
+        openSeedPicker: () => setSeedPickerOpen(true),
         now,
       }}
     >
@@ -294,33 +309,16 @@ export const App = () => {
           )}
         </aside>
         <div className="app-content">
-          <header className="workspace-topbar">
-            {!onboarding && (
-              <span className="desktop-breadcrumb">{currentLabel}</span>
-            )}
-            <Link className="mobile-wordmark" to="/" aria-label="Skibo home">
-              Skibo
-            </Link>
-            <div className="topbar-actions">
-              {state.data.onboarded && (
-                <Link
-                  to="/rewards/tray"
-                  className="tray-link"
-                  aria-label={`Reward tray, ${tray} rewards`}
-                >
-                  <Icon name="rewards" size={18} />
-                  <span>{tray}</span>
-                </Link>
-              )}
-              <Link
-                className="icon-button"
-                to="/settings"
-                aria-label="Settings"
-              >
-                <Icon name="settings" size={19} />
+          {onboarding && (
+            <header className="onboarding-top">
+              <Link className="wordmark" to="/" aria-label="Skibo home">
+                <span className="brand-mark">
+                  <Icon name="leaf" size={21} />
+                </span>
+                Skibo
               </Link>
-            </div>
-          </header>
+            </header>
+          )}
           {state.storageError && (
             <div className="storage-error" role="alert">
               <strong>Changes aren't being saved.</strong>
@@ -399,6 +397,10 @@ export const App = () => {
           <RewardEditor reward={reward} close={closeReward} />
         )}
         <RewardReveal />
+        {activePlant?.finished && canShowCelebration &&
+          seedCelebration?.milestone === milestone && seedCelebration.open && (
+            <SeedPicker plant={activePlant} close={() => setSeedPickerOpen(false)} />
+          )}
         {state.toast && !state.reveal && <Toast />}
       </div>
     </WorkspaceContext.Provider>

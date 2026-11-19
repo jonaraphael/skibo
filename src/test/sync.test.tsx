@@ -121,7 +121,12 @@ it("keeps an editor draft open when another device wins the revision", async () 
   render(
     <MemoryRouter>
       <WorkspaceContext.Provider
-        value={{ now: new Date(), openTask: vi.fn(), openReward: vi.fn() }}
+        value={{
+          now: new Date(),
+          openTask: vi.fn(),
+          openReward: vi.fn(),
+          openSeedPicker: vi.fn(),
+        }}
       >
         <TaskEditor task={data.tasks[0]} close={close} />
       </WorkspaceContext.Provider>

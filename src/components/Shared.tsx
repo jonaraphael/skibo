@@ -1,4 +1,5 @@
 import { Fragment, ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { Effort } from "../app/types";
 import { Icon } from "./Icon";
 export const EffortPips = ({ effort }: { effort: Effort }) => (
@@ -37,13 +38,24 @@ export const PageHeader = ({
   title,
   description,
   children,
+  settings = true,
 }: {
   eyebrow?: string;
   title: string;
   description?: ReactNode;
   children?: ReactNode;
+  settings?: boolean;
 }) => (
   <header className="page-heading">
+    {settings && (
+      <Link
+        className="icon-button mobile-settings"
+        to="/settings"
+        aria-label="Settings"
+      >
+        <Icon name="settings" size={20} />
+      </Link>
+    )}
     <div>
       {eyebrow && <p className="eyebrow">{eyebrow}</p>}
       <h1>{title}</h1>

@@ -2,6 +2,8 @@ import type { Notebook } from "../../app/types";
 import { completions } from "../rewards/engine";
 import { seedPackets } from "./specimens";
 
+export const starterPacket = seedPackets.find((seed) => seed.key === "pea")!;
+
 export interface Sowing {
   seed: string;
   at: string;
@@ -22,6 +24,8 @@ export function gardenPlants(data: Notebook) {
     return { sowing, packet, growth, finished: growth.length === packet.capacity };
   });
 }
+
+export type GardenPlant = ReturnType<typeof gardenPlants>[number];
 
 export function sow(data: Notebook, seed: string, at: string): Notebook {
   return {
