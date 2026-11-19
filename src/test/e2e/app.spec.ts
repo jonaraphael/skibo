@@ -624,8 +624,11 @@ test("clicking the row draws a check, wipes its contents, then slides the next t
   await expect(page.getByRole("button", { name: "0 done" })).toBeVisible();
 
   const walk = page.locator('[data-task-id="walk"]');
-  const start = (await next.boundingBox())!.y;
-  const finish = (await walk.boundingBox())!.y;
+  const listY = (row: Locator) => row.evaluate((el) =>
+    el.getBoundingClientRect().top - el.closest(".workspace-main")!.getBoundingClientRect().top,
+  );
+  const start = await listY(next);
+  const finish = await listY(walk);
   await walk.locator(".task-title").click();
   await expect(editor).toHaveCount(0);
   await expect(walk.locator(".checked path")).toBeVisible();
@@ -634,7 +637,7 @@ test("clicking the row draws a check, wipes its contents, then slides the next t
     const el = document.querySelector('[data-task-id="walk"].finishing');
     return el && getComputedStyle(el).maskPosition.startsWith("0% ");
   });
-  expect((await next.boundingBox())!.y).toBeCloseTo(start, 0);
+  expect(await listY(next)).toBeCloseTo(start, 0);
   // Wait for the survivor's actual animation and sample it halfway through.
   const sample = await page.waitForFunction(() => {
     const el = document.querySelector('[data-task-id="stretch"]')!;
@@ -642,14 +645,14 @@ test("clicking the row draws a check, wipes its contents, then slides the next t
     if (!slide) return null;
     slide.pause();
     slide.currentTime = Number(slide.effect!.getTiming().duration) / 2;
-    const top = el.getBoundingClientRect().top;
+    const top = el.getBoundingClientRect().top - el.closest(".workspace-main")!.getBoundingClientRect().top;
     slide.finish();
     return top;
   });
   const middle = await sample.jsonValue();
   expect(middle).toBeLessThan(start);
   expect(middle).toBeGreaterThan(finish);
-  expect((await next.boundingBox())!.y).toBeCloseTo(finish, 0);
+  expect(await listY(next)).toBeCloseTo(finish, 0);
 });
 
 test("checks move repeatable tasks to the bottom and only the elapsed number changes color", async ({

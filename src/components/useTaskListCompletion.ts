@@ -24,9 +24,12 @@ function slideIntoPlace(list: HTMLElement, taskId: string, release: () => void) 
     return;
   }
 
-  const tops = new Map(items.map((el) => [el, el.getBoundingClientRect().top]));
+  // Measure within the list. Mobile browsers can scroll the viewport when
+  // removing a row shortens the page near the bottom.
+  const before = list.getBoundingClientRect();
+  const tops = new Map(items.map((el) => [el, el.getBoundingClientRect().top - before.top]));
   // If two rows finish close together, start from their on-screen positions.
-  for (const el of items)
+  for (const el of [list, ...items])
     el.getAnimations().find((animation) => animation.id === "task-list-move")?.cancel();
 
   flushSync(release);
@@ -35,6 +38,9 @@ function slideIntoPlace(list: HTMLElement, taskId: string, release: () => void) 
     duration: slideDuration,
     easing: "cubic-bezier(.25,.8,.25,1)",
   };
+  const after = list.getBoundingClientRect();
+  if (before.height > after.height)
+    list.animate([{ minHeight: `${before.height}px` }, { minHeight: `${after.height}px` }], timing);
   for (const el of listItems(list)) {
     if (el.dataset.taskId === taskId && !el.classList.contains("finishing")) {
       el.animate([{ opacity: 0 }, { opacity: 1 }], timing);
@@ -42,7 +48,7 @@ function slideIntoPlace(list: HTMLElement, taskId: string, release: () => void) 
     }
     const previousTop = tops.get(el);
     if (previousTop === undefined) continue;
-    const offset = previousTop - el.getBoundingClientRect().top;
+    const offset = previousTop - (el.getBoundingClientRect().top - after.top);
     if (Math.abs(offset) > 0.5)
       el.animate([{ transform: `translateY(${offset}px)` }, { transform: "none" }], timing);
   }
