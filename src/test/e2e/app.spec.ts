@@ -560,7 +560,7 @@ test("carried tasks check off and a completion clock returns when it reopens tod
   const walk = group.getByRole("article").filter({ hasText: "Take a walk" });
   const message = await walk.locator(".task-meta").innerText();
   expect(message.trim()).toBeTruthy();
-  expect(message).not.toMatch(/idle days?|Available since|Completed 0/i);
+  expect(message).not.toMatch(/idle days?|Available since|Completed 0|not completed yet|since last completed/i);
   await expect(group.locator(".task-meta").filter({ hasText: message })).toHaveCount(1);
   await expect(group.getByRole("img", { name: /Nov 14: Open/ })).toBeVisible();
   await expect(group).not.toContainText(/overdue|past due/i);

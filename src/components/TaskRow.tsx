@@ -39,7 +39,7 @@ export const TaskRow = ({
     0,
     daysBetween(dayKey(new Date(lastCompletion.at), dayStart), dayKey(now, dayStart)),
   );
-  const elapsed = days === undefined ? "Not completed yet" : (
+  const elapsed = days !== undefined && (
     <>
       <span className={period.pastDue ? "elapsed-highlight" : undefined}>{days}</span>
       {days === 1 ? " day" : " days"} since last completed
