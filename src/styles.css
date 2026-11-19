@@ -648,6 +648,36 @@ textarea {
   min-height: 81px;
   border-top: 1px solid var(--line);
   position: relative;
+  transition: background-color 140ms ease;
+}
+.task-primary {
+  display: flex;
+  align-items: center;
+  gap: inherit;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+button.task-primary::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.task-primary > span {
+  position: relative;
+}
+@media (hover: hover) {
+  .task-row:has(button.task-primary:enabled):hover {
+    background-color: color-mix(in srgb, var(--green) 6%, transparent);
+  }
+}
+button.task-primary:focus-visible {
+  outline: none;
+}
+button.task-primary:focus-visible::before {
+  outline: 2px solid var(--green);
+  outline-offset: -2px;
 }
 .complete-button {
   border: 1.4px solid var(--faint);
@@ -660,15 +690,6 @@ textarea {
   place-items: center;
   position: relative;
 }
-.complete-button:after {
-  content: "";
-  position: absolute;
-  inset: -8px;
-}
-.complete-button:not(:disabled):hover {
-  border-color: var(--green);
-  background: var(--soft-green);
-}
 .complete-button.checked {
   background: var(--green);
   border-color: var(--green);
@@ -676,7 +697,13 @@ textarea {
   opacity: 1;
 }
 .task-row.finishing {
-  animation: task-complete 450ms ease-in forwards;
+  mask-image: linear-gradient(to right, transparent 33.33%, black 66.67%);
+  mask-size: 300% 100%;
+  mask-repeat: no-repeat;
+  animation: task-wipe 560ms ease-in-out 480ms both;
+}
+.finishing .task-primary:disabled {
+  opacity: 1;
 }
 .completed-repeat .task-copy,
 .completed-repeat .complete-button,
@@ -688,15 +715,15 @@ textarea {
 }
 .finishing .complete-button path {
   stroke-dasharray: 22;
-  animation: draw-check 150ms ease-out both;
+  animation: draw-check 260ms ease-out both;
 }
 @keyframes draw-check {
   from { stroke-dashoffset: 22; }
   to { stroke-dashoffset: 0; }
 }
-@keyframes task-complete {
-  0%, 45% { opacity: 1; }
-  100% { opacity: 0; }
+@keyframes task-wipe {
+  from { mask-position: 100% 0; }
+  to { mask-position: 0% 0; }
 }
 .task-copy {
   padding: 0;
@@ -713,10 +740,6 @@ textarea {
   font-weight: 500;
   line-height: 1.4;
   overflow-wrap: anywhere;
-}
-.task-copy:hover .task-title {
-  text-decoration: underline;
-  text-underline-offset: 3px;
 }
 .task-meta,
 .task-note {

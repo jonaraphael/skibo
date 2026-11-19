@@ -6,15 +6,15 @@ import { Dotted } from "./Shared";
 import { activeHolds } from "../lib/tasks/taxonomy";
 import { useWorkspace } from "./Workspace";
 import { TaskHistory } from "./TaskHistory";
+import { completionDuration, reduceCompletionMotion } from "./useTaskListCompletion";
 export const RewardReveal = () => {
   const { reveal, dismissReveal, enjoy, data } = useApp();
   const disabled = useApp((s) => !canEdit(s));
   const { now } = useWorkspace();
   const held = activeHolds(data, now).length > 0;
-  const [settled, setSettled] = useState(false);
+  const [settledId, setSettledId] = useState<string>();
   useEffect(() => {
     if (!reveal) return;
-    setSettled(false);
     if (data.preferences.sound) {
       try {
         const audio = new AudioContext();
@@ -41,10 +41,10 @@ export const RewardReveal = () => {
     }
     const timer = window.setTimeout(
       () => {
-        setSettled(true);
+        setSettledId(reveal.id);
         if (!reveal.reward) dismissReveal();
       },
-      data.preferences.reduceMotion ? 0 : 550,
+      reduceCompletionMotion(data.preferences.reduceMotion) ? 0 : reveal.reward ? completionDuration : 550,
     );
     return () => window.clearTimeout(timer);
   }, [
@@ -54,7 +54,7 @@ export const RewardReveal = () => {
     data.preferences.reduceMotion,
   ]);
   if (!reveal?.reward) return null;
-  if (!settled)
+  if (settledId !== reveal.id)
     return (
       <div className="roll-status" role="status">
         <span className="rolling-lamp" />

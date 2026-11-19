@@ -18,7 +18,7 @@ import { completedRepeatsLast, periodFor } from "../lib/tasks/taxonomy";
 
 export const Plan = () => {
   const { data } = useApp();
-  const { finishing, completeRow } = useTaskListCompletion();
+  const { listRef, finishing, completeRow } = useTaskListCompletion();
   const { now, openTask } = useWorkspace();
   const today = dayKey(now, data.preferences.dayStart);
   const [mode, setMode] = useState("week");
@@ -55,7 +55,7 @@ export const Plan = () => {
   const managing = mode === "all" || selected !== today;
   const rows =
     mode === "all"
-      ? periods.filter((p) => status === "all" || p.task.status === status)
+      ? todayPeriods.filter((p) => status === "all" || p.task.status === status)
       : onDay(selected);
   if (!managing) rows.sort(completedRepeatsLast);
   const messages = useDailyTaskMessages(today, managing ? [] : rows);
@@ -166,7 +166,7 @@ export const Plan = () => {
           ))}
         </div>
       )}
-      <section className="plan-list">
+      <section className="plan-list" ref={listRef}>
         <div className="group-label">
           <h3>
             {mode === "all"
@@ -185,10 +185,8 @@ export const Plan = () => {
             period={p}
             management={managing}
             message={messages.get(p.task.id)}
-            finishing={
-              mode === "week" && selected === today && finishing.has(p.task.id)
-            }
-            onComplete={completeRow}
+            finishing={(mode === "all" || selected === today) && finishing.has(p.task.id)}
+            onComplete={mode === "all" || selected === today ? completeRow : undefined}
           />
         ))}
         {rows.length === 0 && (

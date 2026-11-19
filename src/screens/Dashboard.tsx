@@ -12,7 +12,7 @@ import { useTaskListCompletion } from "../components/useTaskListCompletion";
 import { useDailyTaskMessages } from "../components/useDailyTaskMessages";
 import { useWorkspace } from "../components/Workspace";
 import { dayKey, prettyDate } from "../lib/schedule/calendar";
-import { completedRepeatsLast, isRepeatable, periodFor } from "../lib/tasks/taxonomy";
+import { completedRepeat, periodFor } from "../lib/tasks/taxonomy";
 import { completions, trayRewards } from "../lib/rewards/engine";
 
 export const Dashboard = () => {
@@ -20,7 +20,7 @@ export const Dashboard = () => {
   const { now, openTask } = useWorkspace();
   const [filter, setFilter] = useState("all");
   const [showDone, setShowDone] = useState(false);
-  const { finishing, completeRow } = useTaskListCompletion();
+  const { listRef, finishing, completeRow } = useTaskListCompletion();
   const today = dayKey(now, data.preferences.dayStart);
   const done = completions(data.events).filter(
     (e) => dayKey(new Date(e.at), data.preferences.dayStart) === today,
@@ -33,17 +33,17 @@ export const Dashboard = () => {
   const group = (p: TaskPeriod) =>
     p.bucket === "anytime" && !p.drawEligible
       ? "resting"
-      : isRepeatable(p.task)
+      : completedRepeat(p)
         ? "repeat"
-        : "single";
+        : "main";
   const open = periods.filter(
     (p) =>
       (p.bucket === "today" || p.bucket === "anytime") && group(p) !== "resting",
   );
   const groups = [
-    { bucket: "single", label: "" },
+    { bucket: "main", label: "" },
     { bucket: "resting", label: "Not due yet" },
-    { bucket: "repeat", label: "On repeat" },
+    { bucket: "repeat", label: "Run it back" },
   ];
   const tray = trayRewards(data.events);
   const visible = periods
@@ -86,7 +86,7 @@ export const Dashboard = () => {
         </button>
       </PageHeader>
       <div className="workspace-columns">
-        <div className="workspace-main">
+        <div className="workspace-main" ref={listRef}>
           <section id="done-today" aria-label="Done today" hidden={!showDone}>
             {showDone && <DoneToday entries={done} />}
           </section>
@@ -113,7 +113,6 @@ export const Dashboard = () => {
               const rows = filtered
                 .filter((p) => group(p) === bucket)
                 .sort((a, b) =>
-                  completedRepeatsLast(a, b) ||
                   `${a.date ?? ""}${a.time}`.localeCompare(`${b.date ?? ""}${b.time}`),
                 );
               return (

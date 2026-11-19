@@ -300,14 +300,15 @@ it("leaves older resolved one-offs in history without showing them on Today", as
   expect(screen.queryByText(t.title, { exact: true })).not.toBeInTheDocument();
   expect(useApp.getState().data.events).toHaveLength(1);
 });
-it("recognizes a swipe starting on task text and suppresses its edit click", async () => {
+it("recognizes a swipe starting on task text and suppresses its completion click", async () => {
   const t = task();
   const data = { ...emptyNotebook(), tasks: [t] };
+  const onComplete = vi.fn();
   useApp.setState({ data });
   render(
     <MemoryRouter>
       <WorkspaceContext.Provider value={workspace}>
-        <TaskRow period={periodFor(t, [], now, data.preferences)} />
+        <TaskRow period={periodFor(t, [], now, data.preferences)} onComplete={onComplete} />
       </WorkspaceContext.Provider>
     </MemoryRouter>,
   );
@@ -320,6 +321,7 @@ it("recognizes a swipe starting on task text and suppresses its edit click", asy
   });
   expect(useApp.getState().data.events.at(-1)?.type).toBe("snoozed");
   await click(title);
+  expect(onComplete).not.toHaveBeenCalled();
   expect(openTask).not.toHaveBeenCalled();
 });
 

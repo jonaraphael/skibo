@@ -24,6 +24,7 @@ export const TaskRow = ({
   const { task, bucket, lastCompletion } = period;
   const { openTask, now } = useWorkspace();
   const complete = useApp((s) => s.complete);
+  const completeTask = onComplete ?? (management ? undefined : complete);
   const undo = useApp((s) => s.undo);
   const dayStart = useApp((s) => s.data.preferences.dayStart);
   const skip = useApp((s) => s.skip);
@@ -45,12 +46,12 @@ export const TaskRow = ({
       {days === 1 ? " day" : " days"} since last completed
     </>
   );
-  const actionable =
-    !management &&
-    !finishing &&
+  const available =
+    !!completeTask &&
     task.status === "active" &&
     bucket !== "done" &&
     bucket !== "later";
+  const actionable = available && !finishing;
   const meta = management
     ? [
         taskType(task.schedule, task.behavior),
@@ -58,7 +59,7 @@ export const TaskRow = ({
         ...(task.status === "active" ? [] : [task.status]),
       ]
     : [
-        !checkedToday && !finishing && message,
+        !checkedToday && message,
         checkedToday && `Completed ${period.completedToday} ${period.completedToday === 1 ? "time" : "times"} today`,
         (!checkedToday || period.pastDue) && elapsed,
         period.detail,
@@ -68,8 +69,36 @@ export const TaskRow = ({
     fn();
     if (menu.current) menu.current.open = false;
   };
+  const content = (
+    <>
+      {available ? (
+        <span className={`complete-button ${finishing ? "checked" : ""}`} aria-hidden="true">
+          {finishing && <Icon name="check" size={17} />}
+        </span>
+      ) : (
+        <span className="task-kind">
+          <Icon name={task.schedule.kind === "once" ? "today" : "plan"} size={19} />
+        </span>
+      )}
+      <span className="task-copy">
+        <span className="task-title">{task.title}</span>
+        {meta.length > 0 && (
+          <span className="task-meta">
+            <Dotted items={meta} />
+          </span>
+        )}
+        {period.hold && !management && (
+          <span className="task-hold">Holding the reward tray</span>
+        )}
+        {task.notes && <span className="task-note">{task.notes}</span>}
+        <TaskHistory task={task} />
+      </span>
+      <EffortPips effort={task.effort} />
+    </>
+  );
   return (
     <article
+      data-task-id={task.id}
       className={`task-row ${finishing ? "finishing" : ""} ${checkedToday ? "completed-repeat" : ""} ${task.status !== "active" ? "inactive" : ""}`}
       onTouchStart={(e) => {
         touch.current = null;
@@ -98,48 +127,30 @@ export const TaskRow = ({
         touch.current = null;
       }}
     >
-      {!management && (
+      {available ? (
         <button
-          className={`complete-button ${finishing ? "checked" : ""}`}
+          type="button"
+          className="task-primary"
           aria-label={`${finishing ? "Completed" : "Complete"} ${task.title}`}
-          disabled={storageError || !actionable}
-          onClick={() => (onComplete ?? complete)(period)}
+          disabled={storageError || finishing}
+          onPointerDown={(e) => {
+            if (e.pointerType !== "touch") swiped.current = false;
+          }}
+          onKeyDown={() => { swiped.current = false; }}
+          onClick={() => {
+            if (swiped.current) {
+              swiped.current = false;
+              return;
+            }
+            if (menu.current) menu.current.open = false;
+            completeTask(period);
+          }}
         >
-          {finishing && <Icon name="check" size={17} />}
+          {content}
         </button>
+      ) : (
+        <div className="task-primary">{content}</div>
       )}
-      {management && (
-        <span className="task-kind">
-          <Icon
-            name={task.schedule.kind === "once" ? "today" : "plan"}
-            size={19}
-          />
-        </span>
-      )}
-      <button
-        className="task-copy"
-        onClick={(e) => {
-          if (swiped.current) {
-            swiped.current = false;
-            e.preventDefault();
-            return;
-          }
-          openTask(task);
-        }}
-      >
-        <span className="task-title">{task.title}</span>
-        {meta.length > 0 && (
-          <span className="task-meta">
-            <Dotted items={meta} />
-          </span>
-        )}
-        {period.hold && !management && (
-          <span className="task-hold">Holding the reward tray</span>
-        )}
-        {task.notes && <span className="task-note">{task.notes}</span>}
-        <TaskHistory task={task} />
-      </button>
-      <EffortPips effort={task.effort} />
       <details
         className="row-menu"
         ref={menu}

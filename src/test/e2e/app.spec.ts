@@ -555,7 +555,7 @@ test("carried tasks check off and a completion clock returns when it reopens tod
   });
   await go(page);
   const group = page.locator(".task-groups");
-  await expect(page.getByRole("heading", { name: /^(Today|Anytime|On repeat)$/ })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: /^(Today|Anytime|Run it back)$/ })).toHaveCount(0);
   await expect(group.getByRole("article")).toHaveCount(2);
   const walk = group.getByRole("article").filter({ hasText: "Take a walk" });
   const message = await walk.locator(".task-meta").innerText();
@@ -564,7 +564,7 @@ test("carried tasks check off and a completion clock returns when it reopens tod
   await expect(group.locator(".task-meta").filter({ hasText: message })).toHaveCount(1);
   await expect(group.getByRole("img", { name: /Nov 14: Open/ })).toBeVisible();
   await expect(group).not.toContainText(/overdue|past due/i);
-  await group.getByRole("button", { name: "Complete Take a walk" }).click();
+  await walk.locator(".task-title").click();
   const checked = group.getByRole("button", { name: "Completed Take a walk" });
   await expect(checked).toBeDisabled();
   await expect(group.getByRole("article")).toHaveCount(1);
@@ -603,6 +603,55 @@ test("carried tasks check off and a completion clock returns when it reopens tod
   await expect(page.locator(".task-meta")).toContainText("0 days since last completed");
 });
 
+test("clicking the row draws a check, wipes its contents, then slides the next task up", async ({
+  page,
+}) => {
+  const first = task({ kind: "once", start: "2026-11-14" });
+  const second = { ...first, id: "stretch", title: "Stretch" };
+  await seed(page, { ...emptyNotebook(), tasks: [first, second], onboarded: true, rewards: [] });
+  await go(page);
+  const row = page.locator(".task-row").first();
+  const next = page.locator('[data-task-id="stretch"]');
+  if (await page.evaluate(() => matchMedia("(hover: hover)").matches)) {
+    await row.locator(".task-title").hover();
+    await expect(row).not.toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  }
+  await row.getByLabel("Actions for Take a walk").click();
+  await row.getByRole("button", { name: "Edit task & history" }).click();
+  const editor = page.getByRole("dialog", { name: "Edit task" });
+  await expect(editor).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "0 done" })).toBeVisible();
+
+  const walk = page.locator('[data-task-id="walk"]');
+  const start = (await next.boundingBox())!.y;
+  const finish = (await walk.boundingBox())!.y;
+  await walk.locator(".task-title").click();
+  await expect(editor).toHaveCount(0);
+  await expect(walk.locator(".checked path")).toBeVisible();
+  await expect(walk).toHaveCSS("mask-position", /^100% 0/);
+  await page.waitForFunction(() => {
+    const el = document.querySelector('[data-task-id="walk"].finishing');
+    return el && getComputedStyle(el).maskPosition.startsWith("0% ");
+  });
+  expect((await next.boundingBox())!.y).toBeCloseTo(start, 0);
+  // Wait for the survivor's actual animation and sample it halfway through.
+  const sample = await page.waitForFunction(() => {
+    const el = document.querySelector('[data-task-id="stretch"]')!;
+    const slide = el.getAnimations().find((a) => a.id === "task-list-move");
+    if (!slide) return null;
+    slide.pause();
+    slide.currentTime = Number(slide.effect!.getTiming().duration) / 2;
+    const top = el.getBoundingClientRect().top;
+    slide.finish();
+    return top;
+  });
+  const middle = await sample.jsonValue();
+  expect(middle).toBeLessThan(start);
+  expect(middle).toBeGreaterThan(finish);
+  expect((await next.boundingBox())!.y).toBeCloseTo(finish, 0);
+});
+
 test("checks move repeatable tasks to the bottom and only the elapsed number changes color", async ({
   page,
 }) => {
@@ -626,10 +675,12 @@ test("checks move repeatable tasks to the bottom and only the elapsed number cha
   await seed(page, data);
   await go(page);
   const repeats = page.locator(".task-group").filter({
-    has: page.getByRole("heading", { name: "On repeat" }),
+    has: page.getByRole("heading", { name: "Run it back" }),
   });
   const walk = page.getByRole("article").filter({ hasText: upkeep.title });
-  await expect(repeats.locator(".task-title")).toHaveText(["Sketch", "Read"]);
+  const normal = page.locator(".task-group.main");
+  await expect(repeats).toHaveCount(0);
+  await expect(normal.locator(".task-title")).toHaveCount(3);
   await expect(walk).toContainText("5 days since last completed");
   await expect(walk).not.toContainText(/due nov/i);
   await expect(walk.locator(".elapsed-highlight")).toHaveCount(0);
@@ -637,9 +688,11 @@ test("checks move repeatable tasks to the bottom and only the elapsed number cha
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await expect(walk.locator(".elapsed-highlight")).toHaveText("5");
 
-  const sketch = repeats.getByRole("article").filter({ hasText: "Sketch" });
+  const sketch = page.locator(".task-groups").getByRole("article").filter({ hasText: "Sketch" });
   const check = sketch.getByRole("button", { name: "Complete Sketch" });
-  await check.click();
+  // The padding at the top edge also belongs to the completion button.
+  await sketch.click({ position: { x: 4, y: 4 } });
+  await expect(repeats.locator(".task-title")).toHaveText(["Sketch"]);
   await expect(page.locator(".task-groups .task-title").last()).toHaveText("Sketch");
   await expect(sketch).toHaveClass(/completed-repeat/);
   await expect(sketch.locator(".task-copy")).toHaveCSS("opacity", "0.78");
@@ -650,6 +703,11 @@ test("checks move repeatable tasks to the bottom and only the elapsed number cha
   await history.getByRole("article").last().getByRole("button", { name: /Undo completion/ }).click();
   await expect(history.getByRole("article")).toHaveCount(1);
   await expect(sketch.locator(".task-meta")).toHaveText("Completed 1 time today");
+  await history.getByRole("button", { name: /Undo completion/ }).click();
+  await expect(repeats).toHaveCount(0);
+  await expect(normal.locator(".task-title")).toHaveCount(3);
+  await check.press("Space");
+  await expect(repeats.locator(".task-title")).toHaveText(["Sketch"]);
   await nav(page, "Plan");
   await expect(page.locator(".plan-list .task-title").last()).toHaveText("Sketch");
   await nav(page, "Today");
@@ -659,6 +717,8 @@ test("checks move repeatable tasks to the bottom and only the elapsed number cha
   await page.clock.setFixedTime(new Date("2026-11-16T04:00:00-05:00"));
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await expect(sketch).not.toHaveClass(/completed-repeat/);
+  await expect(repeats).toHaveCount(0);
+  await expect(normal.locator(".task-title")).toHaveCount(3);
   await expect(sketch.locator(".task-meta")).toContainText("1 day since last completed");
   await expect(sketch.locator(".task-meta .phrase")).toHaveCount(2);
 });
