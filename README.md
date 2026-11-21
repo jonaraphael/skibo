@@ -32,6 +32,8 @@ Tank and Upkeep can be completed early: that restarts the clock and records a co
 
 Target windows close at their real deadline (the end of the local day when no time is set). Unmet totals automatically enter the record as misses, including after time away. There is no extra finish-line reward. Calendar schedules support once, every N days, selected weekdays every N weeks, and monthly dates or nth weekdays. Short months use their last day. Completion clocks support hours, days, and weeks, with local day boundaries and DST handling.
 
+Turn on **Weekdays only** in a task’s timing settings to take Saturdays and Sundays off. Recurring calendar tasks skip weekend dates, completion clocks pause, and one-off weekend dates move to Monday. Weekend days follow your notebook’s day-start hour. You can edit the task any day in **Plan → All tasks**.
+
 Calendar tasks that pay once per round show up to 14 scheduled days, oldest to newest: a leaf for a completion, a flower for a reward, an outline for the open period, and a bare stem for no completion. Late and snoozed completions fill the original calendar day; undo removes that mark. One-off, completion-clock, and multi-unit tasks have no calendar strip. Schedule edits recompute the strip; the full action record remains unchanged.
 
 The standard hit probability is 0.30. On a winning roll, the size weights are:

@@ -32,7 +32,7 @@ import {
 } from "../lib/sync/firebase";
 import { completePeriod, undoEvent } from "../lib/tasks/actions";
 import { createCryptoRng } from "../lib/rewards/rng";
-import { addDays, dayKey } from "../lib/schedule/calendar";
+import { addDays, dayKey, nextWeekday } from "../lib/schedule/calendar";
 import { periodFor, activeHolds, targetMisses } from "../lib/tasks/taxonomy";
 import { trayRewards } from "../lib/rewards/engine";
 
@@ -286,9 +286,12 @@ export const useApp = create<AppState>((set, get) => ({
   },
   saveTask: async (input, id) => {
     const previous = get().data.tasks.find((t) => t.id === id);
+    // Taking weekends off preserves completions and draws in the current rhythm.
+    const rhythm = (schedule: Task["schedule"]) =>
+      JSON.stringify({ ...schedule, weekdaysOnly: undefined });
     const changedRhythm =
       previous &&
-      (JSON.stringify(previous.schedule) !== JSON.stringify(input.schedule) ||
+      (rhythm(previous.schedule) !== rhythm(input.schedule) ||
         JSON.stringify(previous.behavior) !== JSON.stringify(input.behavior));
     const task: Task = {
       ...input,
@@ -428,18 +431,19 @@ export const useApp = create<AppState>((set, get) => ({
       });
       return;
     }
+    const tomorrow = addDays(dayKey(now, d.preferences.dayStart), 1);
     const event: JournalEvent = {
       id: randomId(),
       type: "snoozed",
       taskId: period.task.id,
       period: period.key,
-      until: addDays(dayKey(now, get().data.preferences.dayStart), 1),
+      until: task.schedule.weekdaysOnly ? nextWeekday(tomorrow) : tomorrow,
       at: now.toISOString(),
     };
     if (!(await get().change((d) => ({ ...d, events: [...d.events, event] }))))
       return;
     get().notify({
-      message: "Moved to tomorrow.",
+      message: task.schedule.weekdaysOnly ? "Moved to the next weekday." : "Moved to tomorrow.",
       undo: () => get().undo(event.id),
     });
   },

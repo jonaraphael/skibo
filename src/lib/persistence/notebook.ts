@@ -55,6 +55,7 @@ const isSchedule = (s: unknown): s is Schedule =>
   time(s.time) &&
   integer(s.every, 1, 365) &&
   Array.isArray(s.weekdays) &&
+  (s.weekdaysOnly === undefined || typeof s.weekdaysOnly === "boolean") &&
   s.weekdays.every((d) => integer(d, 0, 6)) &&
   (s.kind !== "weekly" || s.weekdays.length > 0) &&
   integer(s.monthDay, 1, 31) &&

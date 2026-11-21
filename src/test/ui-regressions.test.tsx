@@ -131,6 +131,7 @@ it("connects a recurring habit to tier examples and its saved reward effort", as
   expect(screen.getByLabelText("Your task rules")).toHaveTextContent(
     "Practice",
   );
+  await click(screen.getByRole("checkbox", { name: "Weekdays only" }));
   await click(
     screen.getByRole("button", {
       name: "Continue",
@@ -159,7 +160,7 @@ it("connects a recurring habit to tier examples and its saved reward effort", as
   expect(data.tasks[0]).toMatchObject({
     title: "Do ten minutes of mobility",
     effort: "heavy",
-    schedule: { kind: "after" },
+    schedule: { kind: "after", weekdaysOnly: true },
     behavior: { payoff: "more", cost: "ramp" },
   });
   expect(data.rewards).toHaveLength(177);

@@ -39,6 +39,7 @@ export const taskHistory = (
       .map((e) => [periodDate(task, e.period), e] as const),
   );
   const current = periodFor(task, events, now, preferences);
+  if (!current.date) return [];
   const currentDate = periodDate(task, current.key);
   const days: HistoryDay[] = [];
   for (
