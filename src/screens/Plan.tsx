@@ -9,6 +9,7 @@ import { useWorkspace } from "../components/Workspace";
 import {
   addDays,
   dayKey,
+  isTaskDay,
   localDate,
   matchesDay,
   prettyDate,
@@ -35,14 +36,14 @@ export const Plan = () => {
   const todayPeriods = periods.map((p) => finishing.get(p.task.id) ?? p);
   const onDay = (date: string) =>
     (date === today ? todayPeriods : periods).filter((p) => {
-      if (p.task.status !== "active") return false;
+      if (p.task.status !== "active" || !p.date) return false;
+      if (!isTaskDay(p.task.schedule, date)) return false;
       if (
         p.bucket === "done" &&
         (date === today || p.task.schedule.kind === "once")
       )
         return false;
       if (p.bucket === "anytime" && date === today) return true;
-      if (!p.date) return date === today;
       if (p.date <= today && date === today) return true;
       if (p.date === date) return true;
       return (

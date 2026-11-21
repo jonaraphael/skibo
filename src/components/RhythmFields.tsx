@@ -484,6 +484,18 @@ export const RhythmTiming = ({
           </label>
         </div>
       </details>
+      <label className="setting-row">
+        <span>
+          <strong>Weekdays only</strong>
+          <small>Skip Saturdays and Sundays for this task.</small>
+        </span>
+        <input
+          type="checkbox"
+          aria-label="Weekdays only"
+          checked={s.weekdaysOnly ?? false}
+          onChange={(e) => patch({ weekdaysOnly: e.target.checked })}
+        />
+      </label>
     </div>
   );
 };

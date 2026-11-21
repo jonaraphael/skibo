@@ -288,6 +288,38 @@ test("first task, reward, undo, saved roll, menu, record, and reload", async ({
   expect(errors).toEqual([]);
 });
 
+test("weekdays only hides weekend obligations and keeps the task editable", async ({ page }) => {
+  await seed(page);
+  await go(page);
+  await expect(page.getByText("1 open", { exact: true })).toBeVisible();
+  await page.getByLabel("Actions for Take a walk").click();
+  await page.getByRole("button", { name: "Edit task & history" }).click();
+  const toggle = page.getByRole("checkbox", { name: "Weekdays only" });
+  await expect(toggle).not.toBeChecked();
+  await toggle.check();
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByRole("dialog", { name: "Edit task" })).toBeHidden();
+  await expect(page.getByText("0 open", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("No tasks due.")).toBeVisible();
+  await nav(page, "Plan");
+  await expect(page.getByText("No tasks scheduled.")).toBeVisible();
+  await page.getByRole("button", { name: "Saturday, November 14" }).click();
+  await expect(page.getByText("No tasks scheduled.")).toBeVisible();
+  await page.getByRole("button", { name: "All tasks" }).click();
+  await expect(page.getByText("Take a walk", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Complete Take a walk" })).toHaveCount(0);
+  await page.getByLabel("Actions for Take a walk").click();
+  await page.getByRole("button", { name: "Edit task & history" }).click();
+  await expect(toggle).toBeChecked();
+
+  await page.clock.setFixedTime(new Date("2026-11-16T12:00:00-05:00"));
+  await go(page);
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Complete Take a walk" })).toBeVisible();
+  await expect(page.getByText("1 open", { exact: true })).toBeVisible();
+});
+
 test("plan, custom schedules, pause, archive, undo and file backup", async ({
   page,
 }, testInfo) => {

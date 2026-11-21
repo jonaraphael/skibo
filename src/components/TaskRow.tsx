@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { TaskPeriod } from "../app/types";
 import { canEdit, useApp } from "../app/store";
-import { dayKey, daysBetween, scheduleLabel } from "../lib/schedule/calendar";
+import { dayKey, scheduleLabel, taskDaysBetween } from "../lib/schedule/calendar";
 import { Dotted, EffortPips } from "./Shared";
 import { useWorkspace } from "./Workspace";
 import { Icon } from "./Icon";
@@ -37,12 +37,16 @@ export const TaskRow = ({
   const swiped = useRef(false);
   const checkedToday = !management && completedRepeat(period);
   const days = lastCompletion
-    ? daysBetween(dayKey(new Date(lastCompletion.at), dayStart), dayKey(now, dayStart))
+    ? taskDaysBetween(
+        task.schedule,
+        dayKey(new Date(lastCompletion.at), dayStart),
+        dayKey(now, dayStart),
+      )
     : 0;
   const elapsed = days > 1 && (
     <>
       <span className={period.pastDue ? "elapsed-highlight" : undefined}>{days}</span>
-      {" days since last completed"}
+      {task.schedule.weekdaysOnly ? " weekdays" : " days"} since last completed
     </>
   );
   const available =
@@ -55,6 +59,7 @@ export const TaskRow = ({
     ? [
         taskType(task.schedule, task.behavior),
         task.schedule.kind === "once" ? "Once" : scheduleLabel(task.schedule),
+        ...(task.schedule.weekdaysOnly ? ["Weekdays only"] : []),
         ...(task.status === "active" ? [] : [task.status]),
       ]
     : [
@@ -197,7 +202,7 @@ export const TaskRow = ({
                 disabled={!!storageError || !!period.hold}
                 onClick={() => act(() => snooze(period))}
               >
-                Move to tomorrow
+                {task.schedule.weekdaysOnly ? "Move to next weekday" : "Move to tomorrow"}
               </button>
               <button
                 disabled={!!storageError}

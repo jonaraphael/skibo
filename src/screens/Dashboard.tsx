@@ -10,7 +10,7 @@ import { TaskRow } from "../components/TaskRow";
 import { useTaskListCompletion } from "../components/useTaskListCompletion";
 import { useDailyTaskMessages } from "../components/useDailyTaskMessages";
 import { useWorkspace } from "../components/Workspace";
-import { dayKey, prettyDate } from "../lib/schedule/calendar";
+import { dayKey, isTaskDay, prettyDate } from "../lib/schedule/calendar";
 import { completedRepeat, periodFor } from "../lib/tasks/taxonomy";
 import { completions } from "../lib/rewards/engine";
 
@@ -26,7 +26,7 @@ export const Dashboard = () => {
   );
   const paid = done.filter((e) => e.reward).length;
   const periods = data.tasks
-    .filter((t) => t.status === "active")
+    .filter((t) => t.status === "active" && isTaskDay(t.schedule, today))
     .map((t) => periodFor(t, data.events, now, data.preferences));
   // A restarted clock with no draw yet is completable but not due.
   const group = (p: TaskPeriod) =>

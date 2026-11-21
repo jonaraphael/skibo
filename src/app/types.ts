@@ -10,6 +10,7 @@ export interface Schedule {
   time: string;
   every: number;
   weekdays: number[];
+  weekdaysOnly?: boolean;
   monthDay: number;
   nthWeekday?: { nth: number; weekday: number };
   unit: "hours" | "days" | "weeks";

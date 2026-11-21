@@ -11,11 +11,16 @@ import {
 import {
   addDays,
   dayKey,
-  daysBetween,
+  fallsOnlyOnWeekends,
+  isTaskDay,
+  isWeekday,
   liveEvents,
   nextCalendarDay,
+  nextWeekday,
   prettyDate,
   scheduleLabel,
+  taskDaysBetween,
+  weekStart,
 } from "../schedule/calendar";
 
 export type TaskType =
@@ -92,6 +97,42 @@ const shift = (date: Date, amount: number, unit: Schedule["unit"]): Date => {
   result.setTime(result.getTime() + (days - Math.floor(days)) * 86_400_000);
   return result;
 };
+const resumeOnWeekday = (date: Date, prefs: Preferences): Date => {
+  const key = dayKey(date, prefs.dayStart);
+  return isWeekday(key) ? date : clockDate(nextWeekday(key), "", prefs);
+};
+// Whole working days preserve local time. Hours run until the notebook's
+// Saturday boundary and resume at Monday's boundary, including across DST.
+const shiftWeekdayClock = (
+  anchor: Date,
+  amount: number,
+  unit: Schedule["unit"],
+  prefs: Preferences,
+): Date => {
+  let date = resumeOnWeekday(anchor, prefs);
+  let hours = amount;
+  if (unit !== "hours") {
+    const days = amount * (unit === "weeks" ? 5 : 1);
+    const whole = Math.floor(days);
+    date = shift(date, Math.floor(whole / 5) * 7, "days");
+    for (let i = 0; i < whole % 5; i++) {
+      date = shift(date, 1, "days");
+      if (!isWeekday(dayKey(date, prefs.dayStart)))
+        date = shift(date, 2, "days");
+    }
+    hours = (days - whole) * 24;
+  }
+  let remaining = hours * 3_600_000;
+  while (remaining > 0) {
+    const monday = weekStart(dayKey(date, prefs.dayStart));
+    const saturday = clockDate(addDays(monday, 5), "", prefs);
+    const available = saturday.getTime() - date.getTime();
+    if (remaining < available) return new Date(date.getTime() + remaining);
+    remaining -= available;
+    date = clockDate(addDays(monday, 7), "", prefs);
+  }
+  return date;
+};
 const resolutions = (task: Task, live: JournalEvent[]) =>
   live.filter(
     (e): e is Extract<JournalEvent, { taskId: string }> =>
@@ -125,10 +166,11 @@ const next = (task: Task, date: string) =>
   task.schedule.kind === "once"
     ? null
     : nextCalendarDay(task.schedule, addDays(date, 1));
-const first = (task: Task) =>
-  task.schedule.kind === "once"
-    ? task.schedule.start
-    : nextCalendarDay(task.schedule, task.schedule.start);
+const windowRound = (task: Task, day: string) => {
+  // A one-off keeps its identity when its weekend deadline moves to Monday.
+  const date = task.schedule.kind === "once" ? task.schedule.start : day;
+  return `${task.id}:${date}:window:r${task.rhythmRevision}`;
+};
 
 export const periodFor = (
   task: Task,
@@ -147,10 +189,33 @@ export const periodFor = (
   );
   const last = history.at(-1);
   const lastDone = history.filter((e) => e.type === "completed").at(-1);
+  const activity = {
+    lastCompletion: completed.at(-1),
+    completedToday: completed.filter(
+      (e) => dayKey(new Date(e.at), prefs.dayStart) === today,
+    ).length,
+  };
+  const first = s.kind === "after" ? s.start : nextCalendarDay(s, s.start);
+  if (!first) {
+    const round = `${task.id}:unscheduled:r${task.rhythmRevision}`;
+    return {
+      task,
+      ...activity,
+      round,
+      key: `${round}:unit:0`,
+      date: null,
+      time: s.time,
+      bucket: "later",
+      drawEligible: false,
+      hold: null,
+      pastDue: false,
+      detail: "",
+    };
+  }
   let round: string;
   let unit = 0;
-  let date = s.start;
-  let opens = boundary(task, s.start, prefs);
+  let date = s.weekdaysOnly ? first : s.start;
+  let opens = boundary(task, date, prefs);
   let due: Date | null = null;
   let done = false;
   let count = 0;
@@ -165,15 +230,18 @@ export const periodFor = (
     round = afterRound(nextUnit(history, (i) => `${afterRound(i)}:unit:0`));
     const anchor = last ? new Date(last.at) : opens;
     opens = anchor;
-    due = shift(anchor, s.every - (b.cost === "cliff" ? b.lead : 0), s.unit);
+    const interval = s.every - (b.cost === "cliff" ? b.lead : 0);
+    due = s.weekdaysOnly
+      ? shiftWeekdayClock(anchor, interval, s.unit, prefs)
+      : shift(anchor, interval, s.unit);
     date = dayKey(due, prefs.dayStart);
     if (type === "Practice") {
       due = null;
     } else {
       if (b.payoff === "accrues") {
-        const rewardOpens = new Date(
-          anchor.getTime() + (due.getTime() - anchor.getTime()) * b.opening,
-        );
+        const rewardOpens = s.weekdaysOnly
+          ? shiftWeekdayClock(anchor, interval * b.opening, s.unit, prefs)
+          : new Date(anchor.getTime() + (due.getTime() - anchor.getTime()) * b.opening);
         drawEligible = now >= rewardOpens;
         if (!drawEligible) detail = "No reward draw yet";
       }
@@ -183,7 +251,7 @@ export const periodFor = (
   } else if (type === "Backlog") {
     let deliveries = 0;
     for (
-      let day: string | null = first(task);
+      let day: string | null = first;
       day && boundary(task, day, prefs) <= now;
       day = next(task, day)
     )
@@ -194,10 +262,9 @@ export const periodFor = (
     count = history.length;
     goal = deliveries * b.goal;
     done = owed === 0 && deliveries > 0;
-    date = s.start;
     detail = `${owed} ${b.unitLabel}${owed === 1 ? "" : "s"} owed`;
   } else if (type === "Start date") {
-    let day: string | null = first(task);
+    let day: string | null = first;
     if (
       last &&
       (s.kind !== "once" ||
@@ -214,19 +281,19 @@ export const periodFor = (
         lastRound > dayKey(new Date(last.at), prefs.dayStart)
           ? lastRound
           : dayKey(new Date(last.at), prefs.dayStart);
-      day = s.kind === "once" ? null : nextCalendarDay(s, addDays(from, 1));
+      day = next(task, from);
     }
     done = day === null;
-    date = day ?? s.start;
-    round = `${task.id}:${date}:start:r${task.rhythmRevision}`;
+    date = day ?? first;
+    round = `${task.id}:${s.kind === "once" ? s.start : date}:start:r${task.rhythmRevision}`;
     opens = boundary(task, date, prefs);
     due = opens;
   } else {
-    let day = first(task);
+    let day = first;
     let opening = b.windowStart;
     // Targets close at their real deadline. Deadlines remain available late.
     for (;;) {
-      round = `${task.id}:${day}:window:r${task.rhythmRevision}`;
+      round = windowRound(task, day);
       const entries = roundEvents(history, round);
       const resolved =
         type === "Target"
@@ -238,8 +305,7 @@ export const periodFor = (
         type === "Deadline" && lastEntry
           ? [day, dayKey(new Date(lastEntry.at), prefs.dayStart)].sort().at(-1)!
           : day;
-      const following =
-        s.kind === "once" ? null : nextCalendarDay(s, addDays(from, 1));
+      const following = next(task, from);
       if (!following) {
         done = true;
         break;
@@ -247,7 +313,6 @@ export const periodFor = (
       opening = addDays(from, 1);
       day = following;
     }
-    round = `${task.id}:${day}:window:r${task.rhythmRevision}`;
     const entries = roundEvents(history, round);
     count = entries.filter((e) => e.type === "completed").length;
     goal = type === "Target" ? b.goal : undefined;
@@ -256,15 +321,16 @@ export const periodFor = (
     opens = boundary(task, opening, prefs);
     due = shift(boundary(task, day, prefs), -b.lead, "days");
     if (due < opens) due = opens;
+    if (s.weekdaysOnly) due = resumeOnWeekday(due, prefs);
     const actedToday = entries.some(
       (e) => dayKey(new Date(e.at), prefs.dayStart) === today,
     );
     if (type === "Target") {
       unit = nextUnit(entries, (i) => `${round}:unit:${i}`);
-      const totalDays = Math.max(1, daysBetween(opening, day) + 1);
+      const totalDays = Math.max(1, taskDaysBetween(s, opening, day) + 1);
       const elapsed = Math.max(
         0,
-        Math.min(totalDays, daysBetween(opening, today)),
+        Math.min(totalDays, taskDaysBetween(s, opening, today)),
       );
       const pace = Math.ceil((b.goal * elapsed) / totalDays);
       if (!done && now >= opens && count < pace && !actedToday)
@@ -300,6 +366,9 @@ export const periodFor = (
   )
     bucket = "done";
   if (done || now < opens) drawEligible = false;
+  const weekend = !isTaskDay(s, today);
+  if (weekend && bucket !== "done") bucket = "later";
+  const periodDate = due ? dayKey(due, prefs.dayStart) : date;
   // Calendar dates without a time run through the end of the notebook day.
   const pastDue = !done && due !== null && (
     s.kind === "after"
@@ -310,14 +379,11 @@ export const periodFor = (
   );
   return {
     task,
-    lastCompletion: completed.at(-1),
-    completedToday: completed.filter(
-      (e) => dayKey(new Date(e.at), prefs.dayStart) === today,
-    ).length,
-    pastDue,
+    ...activity,
+    pastDue: !weekend && pastDue,
     round,
     key: `${round}:unit:${unit}`,
-    date: due ? dayKey(due, prefs.dayStart) : date,
+    date: weekend && !done && periodDate <= today ? nextWeekday(today) : periodDate,
     time: due
       ? due.toLocaleTimeString([], {
           hour12: false,
@@ -326,8 +392,8 @@ export const periodFor = (
         })
       : s.time,
     bucket,
-    drawEligible,
-    hold: done || task.status !== "active" ? null : hold,
+    drawEligible: !weekend && drawEligible,
+    hold: weekend || done || task.status !== "active" ? null : hold,
     detail,
     ...(goal === undefined
       ? {}
@@ -355,11 +421,11 @@ export const targetMisses = (data: Notebook, now: Date): JournalEvent[] => {
       continue;
     const history = resolutions(task, live);
     for (
-      let day: string | null = first(task);
+      let day = nextCalendarDay(task.schedule, task.schedule.start);
       day && closes(task, day, data.preferences) <= now;
       day = next(task, day)
     ) {
-      const round = `${task.id}:${day}:window:r${task.rhythmRevision}`;
+      const round = windowRound(task, day);
       const entries = roundEvents(history, round);
       const id = `miss:${round}`;
       if (
@@ -369,13 +435,18 @@ export const targetMisses = (data: Notebook, now: Date): JournalEvent[] => {
         data.events.some((e) => e.id === id)
       )
         continue;
+      const closed = closes(task, day, data.preferences);
+      // An untimed Friday ends at Saturday's day boundary. Attribute the
+      // miss to the final instant of the weekday the target was actually due.
+      if (task.schedule.weekdaysOnly && !task.schedule.time)
+        closed.setMilliseconds(closed.getMilliseconds() - 1);
       misses.push({
         id,
         type: "missed",
         taskId: task.id,
         taskTitle: task.title,
         period: `${round}:unit:miss`,
-        at: closes(task, day, data.preferences).toISOString(),
+        at: closed.toISOString(),
       });
     }
   }
@@ -402,12 +473,13 @@ export const ruleLines = (
   const units = s.kind === "after" ? s.unit : "days";
   const lead = `${b.lead} ${b.lead === 1 ? units.replace(/s$/, "") : units}`;
   const once = s.kind === "once";
+  const start = once && s.weekdaysOnly ? nextWeekday(s.start) : s.start;
   const due =
     s.kind === "after"
       ? `${s.every} ${s.unit} after each completion. Finishing restarts the clock.`
       : b.cost === "cliff"
-        ? `${once ? "Once, by" : `${scheduleLabel(s)}. First deadline`} ${prettyDate(s.start)}. The window opens ${prettyDate(b.windowStart)}.`
-        : `${once ? "Once" : scheduleLabel(s)}, starting ${prettyDate(s.start)}.`;
+        ? `${once ? "Once, by" : `${scheduleLabel(s)}. First deadline`} ${prettyDate(start)}. The window opens ${prettyDate(b.windowStart)}.`
+        : `${once ? "Once" : scheduleLabel(s)}, starting ${prettyDate(start)}.`;
   const draw =
     b.payoff === "more"
       ? `One draw for every ${b.unitLabel}.`
@@ -421,7 +493,12 @@ export const ruleLines = (
         ? `From ${lead} before the real limit, until you complete it or declare a miss. A hold locks the whole tray; a declared miss forfeits that round's draw.`
         : "None.";
   return [
-    { label: "Due", text: due },
+    {
+      label: "Due",
+      text: fallsOnlyOnWeekends(s)
+        ? "This schedule falls only on weekends. Choose a weekday for this task to appear."
+        : due,
+    },
     { label: "Draw", text: draw },
     { label: "Tray hold", text: hold },
   ];
