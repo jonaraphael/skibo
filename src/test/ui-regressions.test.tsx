@@ -13,7 +13,7 @@ import { MemoryRouter } from "react-router-dom";
 import { useApp } from "../app/store";
 import { emptyNotebook, parseNotebook } from "../lib/persistence/notebook";
 import { saveNotebook } from "../lib/persistence/storage";
-import { drawReward } from "../lib/rewards/engine";
+import { drawReward, trayRewards } from "../lib/rewards/engine";
 
 import { periodFor } from "../lib/tasks/taxonomy";
 import { WorkspaceContext } from "../components/Workspace";
@@ -66,6 +66,44 @@ beforeEach(() => {
 afterEach(async () => {
   cleanup();
   await waitFor(() => expect(useApp.getState().pending).toBe(0));
+});
+
+it("allows repeated redraws of a waiting reward and ignores stale clicks", async () => {
+  const data = emptyNotebook();
+  data.tasks = [task()];
+  const [original, replacement] = data.rewards;
+  const earned = {
+    id: "win", type: "completed" as const, taskId: "walk", taskTitle: "Walk",
+    period: "walk:1", at: now.toISOString(), reward: original, roll: 0,
+  };
+  data.events = [earned];
+  data.rewards = [
+    original,
+    { ...original, id: "same-name", title: original.title.toUpperCase() },
+    { ...replacement, active: false },
+    { ...replacement, id: "wrong-size", size: "big" },
+  ];
+  useApp.setState({ data });
+  const { redraw, enjoy, undo, saveReward } = useApp.getState();
+  await redraw(earned.id, original.id);
+  expect(saveNotebook).not.toHaveBeenCalled();
+  await saveReward(replacement, replacement.id);
+  await enjoy(earned.id);
+  const enjoyed = useApp.getState().data.events.at(-1)!;
+  await redraw(earned.id, original.id);
+  expect(useApp.getState().data.events).toHaveLength(2);
+  await undo(enjoyed.id);
+  await Promise.all([redraw(earned.id, original.id), redraw(earned.id, original.id)]);
+  const saved = useApp.getState().data;
+  expect(saved.events.filter((e) => e.type === "redrawn")).toHaveLength(1);
+  expect(trayRewards(saved.events)).toEqual([{ ...earned, previousRewards: [original], reward: replacement }]);
+  const another = { ...original, id: "new-option", title: "An afternoon walk" };
+  await saveReward(another);
+  await redraw(earned.id, replacement.id);
+  const [second] = trayRewards(useApp.getState().data.events);
+  expect(second.reward?.title).toBe(another.title);
+  await redraw(earned.id, second.reward!.id);
+  expect(trayRewards(useApp.getState().data.events)[0].previousRewards).toHaveLength(3);
 });
 
 it("refuses a mutation that the loader could not reopen", async () => {

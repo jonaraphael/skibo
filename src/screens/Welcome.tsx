@@ -319,8 +319,9 @@ export const Welcome = () => {
               </fieldset>
               {mix && (
                 <p className="schedule-echo" role="status">
-                  <strong>Standard draws have a 30% chance of a reward.</strong>{" "}
-                  When you win with this effort:{" "}
+                  <strong>Each standard draw has a 30% chance of a reward.</strong>{" "}
+                  Consecutive draws without a reward shift the size of your next win toward larger eligible gifts.
+                  The starting size mix for this effort is{" "}
                   {tiers
                     .map(
                       (tier) =>
@@ -334,7 +335,7 @@ export const Welcome = () => {
                       Big rewards are capped at {
                         data.preferences.bigRewardCap
                       }{" "}
-                      per week; once capped, wins come from the other sizes.
+                      per week. Once capped, wins come from the other sizes.
                     </>
                   )}
                 </p>

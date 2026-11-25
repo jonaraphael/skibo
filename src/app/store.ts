@@ -34,7 +34,10 @@ import { completePeriod, undoEvent } from "../lib/tasks/actions";
 import { createCryptoRng } from "../lib/rewards/rng";
 import { addDays, dayKey, nextWeekday } from "../lib/schedule/calendar";
 import { periodFor, activeHolds, targetMisses } from "../lib/tasks/taxonomy";
-import { trayRewards } from "../lib/rewards/engine";
+import {
+  redrawOptions,
+  trayRewards,
+} from "../lib/rewards/engine";
 
 export const randomId = () => crypto.randomUUID();
 interface Toast {
@@ -71,6 +74,7 @@ interface AppState {
   snooze: (period: TaskPeriod) => Promise<void>;
   undo: (eventId: string) => Promise<void>;
   enjoy: (eventId: string) => Promise<void>;
+  redraw: (eventId: string, currentRewardId: string) => Promise<void>;
   saveReward: (input: Omit<Reward, "id">, id?: string) => Promise<boolean>;
   preferences: (patch: Partial<Preferences>) => Promise<boolean>;
   importBackup: (json: string) => Promise<boolean>;
@@ -109,6 +113,14 @@ const errorMessage = (error: unknown) =>
   error instanceof Error
     ? error.message
     : "Storage isn't available. Enable browser storage, then reload.";
+const completionMessage = (event: Completion) => {
+  if (event.reward) return "Done. Reward earned.";
+  if (event.roll === null)
+    return event.noDrawReason === "empty-menu"
+      ? "Done. No eligible rewards for a draw."
+      : "Done. Clock restarted; too early for a draw.";
+  return "Done. No reward this time.";
+};
 const acceptCloud = (record: CloudRecord, uid: string, active: number) => {
   if (
     active !== session ||
@@ -117,12 +129,15 @@ const acceptCloud = (record: CloudRecord, uid: string, active: number) => {
     return;
   const data = parseNotebook(JSON.parse(record.json));
   cloudRevision = record.revision;
+  const reveal = useApp.getState().reveal;
   useApp.setState({
     data,
     syncLoading: false,
     syncError: null,
     toast: null,
-    reveal: null,
+    reveal: reveal?.reward && trayRewards(data.events).some((e) => e.id === reveal.id)
+      ? reveal
+      : null,
   });
   void saveCloudCache(uid, { data, revision: record.revision }).catch(() => {
     if (active === session)
@@ -366,14 +381,7 @@ export const useApp = create<AppState>((set, get) => ({
     }))) return;
     set({ reveal: event.roll === null ? null : event });
     get().notify({
-      message:
-        event.roll === null
-          ? event.noDrawReason === "empty-menu"
-            ? "Done. No eligible rewards for a draw."
-            : "Done. Clock restarted; too early for a draw."
-          : event.reward
-            ? "Done. Reward earned."
-            : "Done. No reward.",
+      message: completionMessage(event),
       undo: () => get().undo(event.id),
     });
   },
@@ -480,6 +488,26 @@ export const useApp = create<AppState>((set, get) => ({
       message: "Reward enjoyed.",
       undo: () => get().undo(event.id),
     });
+  },
+  redraw: async (target, currentRewardId) => {
+    const { data } = get();
+    if (!canEdit(get())) return;
+    const entry = trayRewards(data.events).find((e) => e.id === target);
+    if (!entry || entry.reward?.id !== currentRewardId) return;
+    const options = redrawOptions(entry, data.rewards);
+    if (!options.length) return;
+    const reward = options[Math.floor(createCryptoRng().float01() * options.length)];
+    const event: JournalEvent = {
+      id: randomId(),
+      type: "redrawn",
+      target,
+      reward: { ...reward },
+      at: new Date().toISOString(),
+    };
+    if (!(await get().change((d) => ({ ...d, events: [...d.events, event] })))) return;
+    get().notify(get().reveal?.id === target
+      ? { message: "Task completed.", undo: () => get().undo(target) }
+      : { message: `Your new reward is “${reward.title}”.` });
   },
   saveReward: (input, id) => {
     const reward: Reward = { ...input, id: id ?? randomId() };

@@ -181,6 +181,10 @@ test("first task, reward, undo, saved roll, menu, record, and reload", async ({
     path: testInfo.outputPath("reward-reveal.png"),
     fullPage: false,
   });
+  await reveal.getByRole("button", { name: "Redraw", exact: true }).click();
+  const replacement = "One premium pastry with coffee";
+  await expect(reveal.getByRole("heading", { name: replacement })).toBeVisible();
+  await expect(reveal.getByRole("button", { name: "Redraw", exact: true })).toBeEnabled();
   await reveal.getByRole("button", { name: "Keep in tray" }).click();
   const undoToast = page.getByRole("button", { name: "Undo", exact: true });
   await undoToast.focus();
@@ -198,11 +202,8 @@ test("first task, reward, undo, saved roll, menu, record, and reload", async ({
   await page
     .getByRole("button", { name: "Complete Take a little walk", exact: true })
     .click();
-  await expect(
-    reveal.getByRole("heading", {
-      name: "Fancy coffee at your favorite local café",
-    }),
-  ).toBeVisible();
+  await expect(reveal.getByRole("heading", { name: replacement })).toBeVisible();
+  await expect(reveal.getByRole("button", { name: "Redraw", exact: true })).toBeEnabled();
   await reveal.getByRole("button", { name: "Keep in tray" }).click();
   await nav(page, "Rewards");
   await page
@@ -213,6 +214,7 @@ test("first task, reward, undo, saved roll, menu, record, and reload", async ({
     page.getByRole("heading", { name: "Your cumulative record" }),
   ).toBeVisible();
   await expect(page.getByText("1 of 3 draws", { exact: true })).toBeVisible();
+  await expect(page.getByText(replacement, { exact: true })).toBeVisible();
   await noOverflow(page);
   await page.screenshot({
     path: testInfo.outputPath("record.png"),
@@ -230,12 +232,13 @@ test("first task, reward, undo, saved roll, menu, record, and reload", async ({
   await expect(
     page.getByText("No rewards waiting.", { exact: true }),
   ).toBeVisible();
+  await expect(page.locator(".toast")).toContainText("Reward enjoyed.");
   await page.getByRole("button", { name: "Undo", exact: true }).click();
-  await expect(
-    page.getByRole("heading", {
-      name: "Fancy coffee at your favorite local café",
-    }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: replacement })).toBeVisible();
+  await expect(page.locator(".save-status")).toHaveText("Saved on this device");
+  await page.reload();
+  await expect(page.getByRole("heading", { name: replacement })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Redraw", exact: true })).toBeEnabled();
   await page
     .getByRole("navigation", { name: "Rewards", exact: true })
     .getByRole("link", { name: "Menu" })
@@ -992,12 +995,53 @@ test("evidence strips update with rewards and undo, survive reload, and stay rea
   await expect(row.locator(".history-count")).toBeInViewport();
 });
 
+test("six misses shift the displayed size mix while the win chance stays at 30%", async ({ page }) => {
+  const data = emptyNotebook();
+  const practice = task({ kind: "after" });
+  practice.effort = "solid";
+  practice.behavior.payoff = "more";
+  data.tasks = [practice];
+  data.onboarded = true;
+  data.preferences.reduceMotion = true;
+  await seed(page, data);
+  await go(page);
+  await page.evaluate(() => {
+    const samples = [...Array(6).fill(0.4), 0.29, 0.7, 0];
+    Crypto.prototype.getRandomValues = function <T extends ArrayBufferView | null>(array: T): T {
+      if (array) new Uint32Array(array.buffer)[0] = Math.floor(samples.shift()! * 2 ** 32);
+      return array;
+    };
+  });
+  const complete = page.getByRole("button", { name: `Complete ${practice.title}`, exact: true });
+  for (let i = 1; i <= 6; i++) {
+    await complete.click();
+    await expect(page.locator(".task-meta")).toContainText(`Completed ${i} ${i === 1 ? "time" : "times"} today`);
+  }
+  const menu = page.getByRole("navigation", { name: "Rewards", exact: true }).getByRole("link", { name: "Menu" });
+  await nav(page, "Rewards");
+  await menu.click();
+  await expect(page.locator(".odds-banner")).toContainText("30% chance");
+  const solid = page.getByRole("row", { name: /^solid/ });
+  await expect(solid.getByRole("cell")).toHaveText(["9%", "55%", "36%"]);
+  await nav(page, "Today");
+  await complete.click();
+  const reveal = page.getByRole("dialog", { name: "Reward" });
+  await expect(reveal.getByRole("heading", { name: "New climbing shoes" })).toBeVisible();
+  await reveal.getByRole("button", { name: "Keep in tray" }).click();
+  await nav(page, "Rewards");
+  await menu.click();
+  await expect(page.locator(".odds-banner")).toContainText("30% chance");
+  // The win also fills the weekly big reward cap.
+  await expect(solid.getByRole("cell")).toHaveText(["25%", "75%", "0%"]);
+});
+
 test("holds protect the whole tray and declared misses release it without losing rewards", async ({
   page,
 }) => {
   const data = emptyNotebook();
   data.onboarded = true;
   data.preferences.reduceMotion = true;
+  data.rewards = data.rewards.slice(0, 2);
   const practice = {
     ...task({ kind: "after", start: "2026-11-01", every: 7 }),
     behavior: { ...task().behavior, payoff: "more" as const },
@@ -1026,11 +1070,19 @@ test("holds protect the whole tray and declared misses release it without losing
   await go(page, "/rewards/tray");
   const holds = page.getByRole("region", { name: "Reward tray holds" });
   await expect(holds).toContainText("Water plants");
+  const redraw = page.getByRole("button", { name: "Redraw", exact: true });
+  await redraw.click();
+  await expect(page.getByRole("heading", { name: data.rewards[1].title })).toBeVisible();
   await expect(
     page.getByRole("button", { name: "On hold", exact: true }),
   ).toBeDisabled();
   await noOverflow(page);
   await page.reload();
+  for (const index of [0, 1, 0]) {
+    await redraw.click();
+    await expect(page.getByRole("heading", { name: data.rewards[index].title })).toBeVisible();
+  }
+  await expect(redraw).toBeEnabled();
   await expect(holds).toBeVisible();
   await holds
     .getByRole("button", { name: "Declare a miss for Water plants" })

@@ -16,6 +16,7 @@ import {
   saveCloud,
 } from "../lib/sync/firebase";
 import { emptyNotebook } from "../lib/persistence/notebook";
+import { trayRewards } from "../lib/rewards/engine";
 
 import { periodFor } from "../lib/tasks/taxonomy";
 import { TaskEditor } from "../screens/TaskEditor";
@@ -146,6 +147,32 @@ it("keeps an editor draft open when another device wins the revision", async () 
   });
   expect(saveCloud).toHaveBeenLastCalledWith("one", 1, expect.anything());
   expect(close).toHaveBeenCalledOnce();
+});
+
+it("keeps the open reward in sync when another device wins a redraw", async () => {
+  const data = useApp.getState().data;
+  const win = {
+    id: "win", type: "completed" as const, taskId: data.tasks[0].id,
+    taskTitle: data.tasks[0].title, period: "first", at: new Date().toISOString(),
+    roll: 0, reward: data.rewards[0],
+  };
+  hooks.accept!(cloudRecord({ ...data, events: [win] }, 1));
+  useApp.setState({ reveal: win });
+  const swap = {
+    id: "other-device-swap", type: "redrawn" as const, target: win.id,
+    at: win.at, reward: data.rewards[1],
+  };
+  vi.mocked(saveCloud).mockRejectedValueOnce(
+    new CloudConflict(cloudRecord({ ...data, events: [win, swap] }, 2)),
+  );
+  await useApp.getState().redraw(win.id, win.reward.id);
+  const app = useApp.getState();
+  expect(app.reveal?.id).toBe(win.id);
+  expect(trayRewards(app.data.events)).toEqual([{ ...win, reward: swap.reward, previousRewards: [win.reward] }]);
+  await app.redraw(win.id, win.reward.id);
+  expect(saveCloud).toHaveBeenCalledTimes(1);
+  await app.redraw(win.id, swap.reward.id);
+  expect(saveCloud).toHaveBeenCalledTimes(2);
 });
 
 it("blocks offline mutations and resumes after reconnecting", async () => {

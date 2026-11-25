@@ -68,7 +68,7 @@ export const liveEvents = (events: JournalEvent[]): JournalEvent[] => {
     (e) =>
       e.type !== "undone" &&
       !undone.has(e.id) &&
-      (e.type !== "enjoyed" || !undone.has(e.target)),
+      ((e.type !== "enjoyed" && e.type !== "redrawn") || !undone.has(e.target)),
   );
 };
 const monthlyDate = (s: Schedule, year: number, month: number): Date => {

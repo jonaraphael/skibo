@@ -69,6 +69,13 @@ export type JournalEvent =
     }
   | {
       id: string;
+      type: "redrawn";
+      target: string;
+      reward: Reward;
+      at: string;
+    }
+  | {
+      id: string;
       type: "skipped" | "missed";
       taskId: string;
       taskTitle: string;
