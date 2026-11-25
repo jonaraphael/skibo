@@ -2,7 +2,7 @@
 
 Do what you want to do more often.
 
-Add a task, choose rewards that matter to you, and build a record of your effort. Eligible completions draw from your reward menu. Standard draws have a 30% win chance. Wins stay in your tray until you enjoy them.
+Add a task, choose rewards that matter to you, and build a record of your effort. Each standard task draw has a 30% chance of a reward. Consecutive draws without a reward favor larger eligible gifts on your next win. Wins stay in your tray until you enjoy them.
 
 New notebooks come with 177 personal reward ideas, from good coffee and garden upgrades to climbing gear and time off, with big rewards capped at one per week by default. The walkthrough connects a habit that's hard to start with reward examples at every tier, lets you add your own, and finishes by inviting you to write down more habits.
 
@@ -36,7 +36,7 @@ Turn on **Weekdays only** in a task’s timing settings to take Saturdays and Su
 
 Calendar tasks that pay once per round show up to 14 scheduled days, oldest to newest: a leaf for a completion, a flower for a reward, an outline for the open period, and a bare stem for no completion. Late and snoozed completions fill the original calendar day; undo removes that mark. One-off, completion-clock, and multi-unit tasks have no calendar strip. Schedule edits recompute the strip; the full action record remains unchanged.
 
-The standard hit probability is 0.30. On a winning roll, the size weights are:
+In a new notebook, the first two eligible draws miss and the third wins using the starting size mix. Every subsequent eligible draw has a 30% win chance. After a win, the size mix returns to the starting weights for the task’s effort.
 
 | Effort | Small | Medium | Big |
 | ------ | ----: | -----: | --: |
@@ -44,7 +44,9 @@ The standard hit probability is 0.30. On a winning roll, the size weights are:
 | Solid  |   20% |    60% | 20% |
 | Heavy  |   10% |    35% | 55% |
 
-Missing, paused, or capped sizes are removed and the remaining weights are normalized. The Menu shows the current effective mix. If there is no eligible reward, completion still counts and no reward is awarded. The observed payout rate will vary. Undoing then redoing the same unit reuses its original draw, including its reward snapshot. An early completion stays a no-draw result on redo.
+For each miss up to ten, the medium weight gains one sixth of its starting weight. The big weight uses the square of the same multiplier. After six misses, the medium weight doubles and the big weight quadruples. Missing, paused, or capped sizes are removed and the remaining weights are normalized. The Menu shows the current mix. Early completions and completions with no eligible reward leave the bonus in place. Undoing then redoing a unit restores its saved draw.
+
+Choose **Redraw** when a reward appears or while it is waiting in your tray. You can swap as often as you like for a different active reward of the same size. Redraws offer gifts you haven’t seen for this win first. Once you’ve seen them all, earlier gifts can come up again. If only your current reward is available, adding another option of that size lets you redraw. Your latest choice carries through reloads and task undo and redo. All swaps count as the same win for the weekly cap and keep any tray hold in effect.
 
 Completion, declared miss, snooze, and enjoyment actions have a five-second undo; hovering or focusing the notification keeps it available. Press Command-Z (Ctrl-Z on Windows or Linux) to undo the latest completion and its draw, including a reward already marked enjoyed. The shortcut works after the notification closes. You can also undo a task’s last completion from its menu in Plan → All tasks. The countdown waits while the reward reveal is open. On touch devices, swipe a task left to move it to tomorrow, or right to declare a miss. The same actions are available in each row's menu.
 

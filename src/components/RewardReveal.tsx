@@ -6,6 +6,8 @@ import { Dotted } from "./Shared";
 import { activeHolds } from "../lib/tasks/taxonomy";
 import { useWorkspace } from "./Workspace";
 import { TaskHistory } from "./TaskHistory";
+import { RewardRedraw } from "./RewardRedraw";
+import { trayRewards } from "../lib/rewards/engine";
 import { completionDuration, reduceCompletionMotion } from "./useTaskListCompletion";
 export const RewardReveal = () => {
   const { reveal, dismissReveal, enjoy, data } = useApp();
@@ -54,6 +56,8 @@ export const RewardReveal = () => {
     data.preferences.reduceMotion,
   ]);
   if (!reveal?.reward) return null;
+  const entry = trayRewards(data.events).find((e) => e.id === reveal.id);
+  if (!entry?.reward) return null;
   if (settledId !== reveal.id)
     return (
       <div className="roll-status" role="status">
@@ -66,8 +70,8 @@ export const RewardReveal = () => {
       <div className="reward-reveal-orb">
         <i />
       </div>
-      <p className="reward-label">{reveal.reward.size}</p>
-      <h2>{reveal.reward.title}</h2>
+      <p className="reward-label">{entry.reward.size}</p>
+      <h2 aria-live="polite">{entry.reward.title}</h2>
       <p className="lede">
         <Dotted
           items={[
@@ -105,13 +109,16 @@ export const RewardReveal = () => {
           Keep in tray
         </button>
       </div>
-      <button
-        className="text-link reveal-undo"
-        disabled={disabled}
-        onClick={() => useApp.getState().undo(reveal.id)}
-      >
-        Undo
-      </button>
+      <div className="reveal-links">
+        <RewardRedraw entry={entry} />
+        <button
+          className="text-link"
+          disabled={disabled}
+          onClick={() => useApp.getState().undo(reveal.id)}
+        >
+          Undo completion
+        </button>
+      </div>
     </Dialog>
   );
 };

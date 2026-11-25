@@ -56,6 +56,6 @@ export const undoEvent = (
   id: string,
 ): JournalEvent | null => {
   const event = liveEvents(data.events).find((e) => e.id === target);
-  if (!event || event.type === "undone" || event.type === "missed") return null;
+  if (!event || event.type === "undone" || event.type === "missed" || event.type === "redrawn") return null;
   return { id, type: "undone", target, at: now.toISOString() };
 };

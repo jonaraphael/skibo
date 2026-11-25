@@ -10,6 +10,7 @@ import {
 } from "../../app/types";
 import { validDate } from "../schedule/calendar";
 import { defaultRewards } from "../rewards/rewardPools";
+import { drawKey, isRedrawOption } from "../rewards/engine";
 
 export const defaultPreferences = (): Preferences => ({
   theme: "system",
@@ -98,6 +99,7 @@ const isTask = (t: unknown): t is Task =>
 const isEvent = (e: unknown): e is JournalEvent => {
   if (!object(e) || !id(e.id) || !iso(e.at)) return false;
   if (e.type === "undone" || e.type === "enjoyed") return id(e.target);
+  if (e.type === "redrawn") return id(e.target) && isReward(e.reward);
   if (!id(e.taskId) || !text(e.period) || !e.period) return false;
   if (e.type === "snoozed") return validDate(e.until);
   if (!title(e.taskTitle)) return false;
@@ -172,19 +174,43 @@ export const parseNotebook = (value: unknown): Notebook => {
   )
     throw new Error("The backup contains invalid preferences.");
   const seen = new Map<string, JournalEvent>();
+  const undone = new Set<string>();
+  const enjoyed = new Map<string, number>();
+  const latestReward = new Map<string, Reward>();
   const taskIds = new Set(value.tasks.map((t) => t.id));
   for (const event of value.events) {
     if ("taskId" in event && !taskIds.has(event.taskId))
       throw new Error("The backup contains history for an unknown task.");
-    if (event.type === "undone" || event.type === "enjoyed") {
+    if ("target" in event) {
       const target = seen.get(event.target);
       if (
         !target ||
         target.type === "undone" ||
+        target.type === "redrawn" ||
         (event.type === "enjoyed" &&
           (target.type !== "completed" || !target.reward))
       )
         throw new Error("The backup contains an invalid history reference.");
+      if (event.type === "redrawn") {
+        if (
+          target.type !== "completed" ||
+          !target.reward ||
+          undone.has(target.id) ||
+          enjoyed.get(target.id)
+        )
+          throw new Error("The backup contains an invalid reward redraw.");
+        const key = drawKey(target);
+        const current = latestReward.get(key) ?? target.reward;
+        if (!isRedrawOption(current, event.reward))
+          throw new Error("The backup contains an invalid reward redraw.");
+        latestReward.set(key, event.reward);
+      } else if (event.type === "enjoyed") {
+        enjoyed.set(target.id, (enjoyed.get(target.id) ?? 0) + 1);
+      } else if (!undone.has(target.id)) {
+        undone.add(target.id);
+        if (target.type === "enjoyed")
+          enjoyed.set(target.target, enjoyed.get(target.target)! - 1);
+      }
     }
     seen.set(event.id, event);
   }
