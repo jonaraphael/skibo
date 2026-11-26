@@ -168,11 +168,10 @@ it("keeps the open reward in sync when another device wins a redraw", async () =
   await useApp.getState().redraw(win.id, win.reward.id);
   const app = useApp.getState();
   expect(app.reveal?.id).toBe(win.id);
-  expect(trayRewards(app.data.events)).toEqual([{ ...win, reward: swap.reward, previousRewards: [win.reward] }]);
+  expect(trayRewards(app.data.events)).toEqual([{ ...win, reward: swap.reward, redrawn: true }]);
   await app.redraw(win.id, win.reward.id);
-  expect(saveCloud).toHaveBeenCalledTimes(1);
   await app.redraw(win.id, swap.reward.id);
-  expect(saveCloud).toHaveBeenCalledTimes(2);
+  expect(saveCloud).toHaveBeenCalledTimes(1);
 });
 
 it("blocks offline mutations and resumes after reconnecting", async () => {

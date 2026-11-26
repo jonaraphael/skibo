@@ -68,7 +68,7 @@ afterEach(async () => {
   await waitFor(() => expect(useApp.getState().pending).toBe(0));
 });
 
-it("allows repeated redraws of a waiting reward and ignores stale clicks", async () => {
+it("allows one redraw per win and ignores duplicate and stale clicks", async () => {
   const data = emptyNotebook();
   data.tasks = [task()];
   const [original, replacement] = data.rewards;
@@ -76,7 +76,8 @@ it("allows repeated redraws of a waiting reward and ignores stale clicks", async
     id: "win", type: "completed" as const, taskId: "walk", taskTitle: "Walk",
     period: "walk:1", at: now.toISOString(), reward: original, roll: 0,
   };
-  data.events = [earned];
+  const nextWin = { ...earned, id: "next-win", period: "walk:2" };
+  data.events = [earned, nextWin];
   data.rewards = [
     original,
     { ...original, id: "same-name", title: original.title.toUpperCase() },
@@ -91,19 +92,19 @@ it("allows repeated redraws of a waiting reward and ignores stale clicks", async
   await enjoy(earned.id);
   const enjoyed = useApp.getState().data.events.at(-1)!;
   await redraw(earned.id, original.id);
-  expect(useApp.getState().data.events).toHaveLength(2);
+  expect(useApp.getState().data.events.at(-1)).toBe(enjoyed);
   await undo(enjoyed.id);
   await Promise.all([redraw(earned.id, original.id), redraw(earned.id, original.id)]);
   const saved = useApp.getState().data;
   expect(saved.events.filter((e) => e.type === "redrawn")).toHaveLength(1);
-  expect(trayRewards(saved.events)).toEqual([{ ...earned, previousRewards: [original], reward: replacement }]);
-  const another = { ...original, id: "new-option", title: "An afternoon walk" };
-  await saveReward(another);
+  expect(trayRewards(saved.events)).toEqual([{ ...earned, redrawn: true, reward: replacement }, nextWin]);
+  await saveReward({ ...original, title: "An afternoon walk" });
+  const afterMenuEdit = useApp.getState().data;
+  await redraw(earned.id, original.id);
   await redraw(earned.id, replacement.id);
-  const [second] = trayRewards(useApp.getState().data.events);
-  expect(second.reward?.title).toBe(another.title);
-  await redraw(earned.id, second.reward!.id);
-  expect(trayRewards(useApp.getState().data.events)[0].previousRewards).toHaveLength(3);
+  expect(useApp.getState().data).toBe(afterMenuEdit);
+  await redraw(nextWin.id, original.id);
+  expect(useApp.getState().data.events.at(-1)).toMatchObject({ type: "redrawn", target: nextWin.id });
 });
 
 it("refuses a mutation that the loader could not reopen", async () => {

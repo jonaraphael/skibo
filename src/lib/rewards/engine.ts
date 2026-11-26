@@ -19,7 +19,7 @@ export const SIZE_MIX: Record<Effort, SizeMix> = {
   heavy: { small: 0.1, medium: 0.35, big: 0.55 },
 };
 
-export type RewardCompletion = Completion & { previousRewards?: Reward[] };
+export type RewardCompletion = Completion & { redrawn?: true };
 export const drawKey = (event: Completion) =>
   JSON.stringify([event.taskId, event.period]);
 
@@ -32,18 +32,14 @@ export const completions = (events: JournalEvent[]): RewardCompletion[] => {
 
   // A rechecked unit has a new event ID but keeps the same earned reward.
   const originals = new Map(events.filter((e) => e.type === "completed").map((e) => [e.id, e]));
-  const history = new Map<string, Reward[]>();
+  const latestReward = new Map<string, Reward>();
   for (const swap of swaps) {
     const original = originals.get(swap.target);
-    if (!original?.reward) continue;
-    const key = drawKey(original);
-    const rewards = history.get(key);
-    if (rewards) rewards.push(swap.reward);
-    else history.set(key, [original.reward, swap.reward]);
+    if (original?.reward) latestReward.set(drawKey(original), swap.reward);
   }
   return done.map((e) => {
-    const rewards = history.get(drawKey(e));
-    return rewards ? { ...e, reward: rewards.at(-1)!, previousRewards: rewards.slice(0, -1) } : e;
+    const reward = latestReward.get(drawKey(e));
+    return reward ? { ...e, reward, redrawn: true } : e;
   });
 };
 
@@ -63,13 +59,8 @@ export const isRedrawOption = (current: Reward, candidate: Reward) =>
 
 export const redrawOptions = (entry: RewardCompletion, rewards: Reward[]) => {
   const current = entry.reward;
-  if (!current) return [];
-  const options = rewards.filter((r) => isRedrawOption(current, r));
-  if (!entry.previousRewards?.length) return options;
-  const seenIds = new Set(entry.previousRewards.map((r) => r.id));
-  const seenTitles = new Set(entry.previousRewards.map(normalizedTitle));
-  const unseen = options.filter((r) => !seenIds.has(r.id) && !seenTitles.has(normalizedTitle(r)));
-  return unseen.length ? unseen : options;
+  if (!current || entry.redrawn) return [];
+  return rewards.filter((r) => isRedrawOption(current, r));
 };
 
 // Count live units in their original draw order. Replaying an old draw cannot
