@@ -7,6 +7,7 @@ import {
   completions,
   drawReward,
   forecastRewards,
+  redrawOptions,
   SIZE_MIX,
   trayRewards,
   unrewardedDraws,
@@ -187,7 +188,7 @@ it("ignores no-draw completions and keeps replayed draws in their original order
   expect(unrewardedDraws(data.events)).toBe(1);
 });
 
-it("can redraw repeatedly across undo, replay, backup, and menu edits", () => {
+it("keeps a used redraw across undo, replay, backup, and menu edits", () => {
   const data = emptyNotebook();
   data.tasks.push(task());
   const win = check("won", data.rewards[0]);
@@ -200,16 +201,14 @@ it("can redraw repeatedly across undo, replay, backup, and menu edits", () => {
   expect(trayRewards(data.events)).toEqual([]);
   data.events.push({ ...win, id: "redo" });
   const saved = parseNotebook(JSON.parse(JSON.stringify(data)));
-  expect(completions(saved.events)).toEqual([{ ...win, id: "redo", previousRewards: [win.reward], reward: replacement }]);
+  expect(completions(saved.events)).toEqual([{ ...win, id: "redo", redrawn: true, reward: replacement }]);
   expect(trayRewards(saved.events)).toEqual(completions(saved.events));
   expect(() => parseNotebook({ ...data, events: [...data.events, { ...swap, target: "redo", id: "again" }] })).toThrow();
-  for (let i = 0; i < 5; i++) {
-    const reward = i % 2 === 0 ? win.reward! : replacement;
-    saved.events.push({ ...swap, id: `swap-${i}`, target: "redo", reward });
-  }
-  const [current] = trayRewards(parseNotebook(JSON.parse(JSON.stringify(saved))).events);
+  // Older notebooks could swap back to the original reward.
+  saved.events.push({ ...swap, id: "swap-back", target: "redo", reward: win.reward! });
+  const [current] = trayRewards(parseNotebook(saved).events);
   expect(current.reward).toEqual(win.reward);
-  expect(current.previousRewards).toHaveLength(6);
+  expect(redrawOptions(current, saved.rewards)).toEqual([]);
 });
 
 it("forecasts streak bonuses, resets, and redistribution after a big win", () => {

@@ -181,10 +181,11 @@ test("first task, reward, undo, saved roll, menu, record, and reload", async ({
     path: testInfo.outputPath("reward-reveal.png"),
     fullPage: false,
   });
-  await reveal.getByRole("button", { name: "Redraw", exact: true }).click();
+  await reveal.getByRole("button", { name: "Redraw once", exact: true }).click();
   const replacement = "One premium pastry with coffee";
   await expect(reveal.getByRole("heading", { name: replacement })).toBeVisible();
-  await expect(reveal.getByRole("button", { name: "Redraw", exact: true })).toBeEnabled();
+  await expect(reveal.getByText("Redraw used", { exact: true })).toBeVisible();
+  await expect(reveal.getByRole("button", { name: "Redraw once", exact: true })).toHaveCount(0);
   await reveal.getByRole("button", { name: "Keep in tray" }).click();
   const undoToast = page.getByRole("button", { name: "Undo", exact: true });
   await undoToast.focus();
@@ -203,7 +204,7 @@ test("first task, reward, undo, saved roll, menu, record, and reload", async ({
     .getByRole("button", { name: "Complete Take a little walk", exact: true })
     .click();
   await expect(reveal.getByRole("heading", { name: replacement })).toBeVisible();
-  await expect(reveal.getByRole("button", { name: "Redraw", exact: true })).toBeEnabled();
+  await expect(reveal.getByText("Redraw used", { exact: true })).toBeVisible();
   await reveal.getByRole("button", { name: "Keep in tray" }).click();
   await nav(page, "Rewards");
   await page
@@ -238,7 +239,7 @@ test("first task, reward, undo, saved roll, menu, record, and reload", async ({
   await expect(page.locator(".save-status")).toHaveText("Saved on this device");
   await page.reload();
   await expect(page.getByRole("heading", { name: replacement })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Redraw", exact: true })).toBeEnabled();
+  await expect(page.getByText("Redraw used", { exact: true })).toBeVisible();
   await page
     .getByRole("navigation", { name: "Rewards", exact: true })
     .getByRole("link", { name: "Menu" })
@@ -1070,7 +1071,7 @@ test("holds protect the whole tray and declared misses release it without losing
   await go(page, "/rewards/tray");
   const holds = page.getByRole("region", { name: "Reward tray holds" });
   await expect(holds).toContainText("Water plants");
-  const redraw = page.getByRole("button", { name: "Redraw", exact: true });
+  const redraw = page.getByRole("button", { name: "Redraw once", exact: true });
   await redraw.click();
   await expect(page.getByRole("heading", { name: data.rewards[1].title })).toBeVisible();
   await expect(
@@ -1078,11 +1079,9 @@ test("holds protect the whole tray and declared misses release it without losing
   ).toBeDisabled();
   await noOverflow(page);
   await page.reload();
-  for (const index of [0, 1, 0]) {
-    await redraw.click();
-    await expect(page.getByRole("heading", { name: data.rewards[index].title })).toBeVisible();
-  }
-  await expect(redraw).toBeEnabled();
+  await expect(page.getByRole("heading", { name: data.rewards[1].title })).toBeVisible();
+  await expect(page.getByText("Redraw used", { exact: true })).toBeVisible();
+  await expect(redraw).toHaveCount(0);
   await expect(holds).toBeVisible();
   await holds
     .getByRole("button", { name: "Declare a miss for Water plants" })

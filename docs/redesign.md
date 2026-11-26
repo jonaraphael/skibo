@@ -20,7 +20,7 @@ Warm paper and quiet green structure the workspace. Serif headings soften the ap
 
 - Calendar schedules use local date arithmetic, with explicit tests across DST and month ends.
 - Three behavior questions derive Target, Backlog, Lapse, Practice, Deadline, Start date, Tank, or Upkeep. Reward eligibility follows units or time accrued. Hockey-stick tasks hold tray enjoyment until a completion or declared miss; Target holds use daily pace. Closed, unmet Target windows are recorded as misses. See the README for the complete timing rules.
-- A waiting reward can be redrawn any number of times for a different active reward of its size. The journal records each swap. Rechecking an undone period restores the most recent choice.
+- Each earned reward can be redrawn once for a different active reward of its size. The journal records the swap so rechecking an undone period restores the replacement with its redraw already used.
 - New notebooks give the first reward on the third distinct eligible draw using the starting size mix. Standard draws have a 30% win chance. Each of the first ten consecutive misses increases the relative weights of larger eligible sizes. A win resets those weights. Each reward within the selected size is equally likely on the initial draw.
 - A weekly cap removes big rewards from the eligible mix after the cap is reached. Missing/paused sizes are treated the same way. Menu and engine share the same mix calculation.
 - IndexedDB writes are atomic and revision-checked. Backup restore validates the complete notebook before replacing it.
