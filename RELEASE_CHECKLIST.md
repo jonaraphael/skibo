@@ -4,7 +4,7 @@ Run these against the final commit:
 
 - `TZ=America/New_York npm test`
 - `TZ=UTC npm test`
-- `VITE_BASE_PATH=/skinner/ npm run test:e2e`
+- `VITE_BASE_PATH=/skibo/ npm run test:e2e`
 - Inspect the mobile and desktop screenshots in `test-results/` for layout, sheets, and dark mode.
 - Verify the generated manifest has 192px and 512px PNG icons, the correct start URL, and the repository scope.
 - Confirm notebook backup/restore tests pass.

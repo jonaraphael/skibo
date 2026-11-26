@@ -9,7 +9,7 @@ jobs:
   verify:
     runs-on: ubuntu-24.04
     env:
-      VITE_BASE_PATH: /skinner/
+      VITE_BASE_PATH: /${{ github.event.repository.name }}/
       TZ: America/New_York
     steps:
       - uses: actions/checkout@v4

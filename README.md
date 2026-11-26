@@ -61,7 +61,7 @@ npx playwright install chromium
 npm run test:e2e         # production app on mobile and desktop Chromium
 ```
 
-`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` can select an existing local Chromium binary. CI verifies both UTC and America/New_York and runs browser tests under `/skinner/`.
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` can select an existing local Chromium binary. CI verifies both UTC and America/New_York and runs browser tests under the deployed path, `/skibo/`.
 
 ## Data and recovery
 
@@ -86,6 +86,6 @@ Run `npm run test:sync` for local Auth/Database emulator rules and two-device br
 
 `.github/workflows/ci.yml` verifies PRs. `.github/workflows/deploy.yml` builds and deploys pushes to `main`. Set repository Pages source to **GitHub Actions**.
 
-`VITE_BASE_PATH` controls the deployment path. CI sets `/skinner/`; the deploy workflow derives it from the repository name. Hash routing keeps routes and reloads inside the PWA's scope, including on static GitHub Pages.
+Skibo is live at [jonaraphael.com/skibo/](https://jonaraphael.com/skibo/). CI and the deploy workflow derive `VITE_BASE_PATH` from the repository name. Hash routing keeps routes and reloads inside the PWA's scope, including on static GitHub Pages.
 
 See [the redesign scope](docs/redesign.md) and [release checks](RELEASE_CHECKLIST.md).
